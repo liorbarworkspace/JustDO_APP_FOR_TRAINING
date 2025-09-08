@@ -1,7 +1,8 @@
-import type { Exercise, ContentSection, PlannedExercise, WorkoutTemplate } from './types';
+import type { Exercise, ContentSection, PlannedExercise, WorkoutTemplate, WeeklyPlan } from './types';
 
 export const EXERCISE_CATEGORIES = ['כוח', 'ליבה', 'אירובי', 'קליסטניקס', 'כדורסל', 'חימום', 'גמישות'] as const;
 export const EXERCISE_LEVELS = ['מתחיל', 'בינוני', 'מתקדם'] as const;
+export const DAYS_OF_WEEK = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'] as const;
 
 
 export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
@@ -248,6 +249,61 @@ export const INITIAL_WORKOUT_TEMPLATES: WorkoutTemplate[] = [
         duration: "",
         exercises: [],
     },
+];
+
+export const INITIAL_WEEKLY_PLANS: WeeklyPlan[] = [
+    {
+        id: 'week-1',
+        name: 'שבוע 1 - רמה: מתחיל',
+        schedule: {
+            'ראשון': 'workout-short',
+            'שני': 'workout-full-rest',
+            'שלישי': 'workout-medium',
+            'רביעי': 'workout-active-rest',
+            'חמישי': 'workout-long',
+            'שישי': 'workout-game',
+            'שבת': 'workout-full-rest',
+        }
+    },
+    {
+        id: 'week-2',
+        name: 'שבוע 2 - רמה: מתחיל',
+        schedule: {
+            'ראשון': 'workout-short',
+            'שני': 'workout-active-rest',
+            'שלישי': 'workout-medium',
+            'רביעי': 'workout-full-rest',
+            'חמישי': 'workout-long',
+            'שישי': 'workout-game',
+            'שבת': 'workout-full-rest',
+        }
+    },
+    {
+        id: 'week-3',
+        name: 'שבוע 3 - רמה: מתחיל',
+        schedule: {
+            'ראשון': 'workout-medium',
+            'שני': 'workout-full-rest',
+            'שלישי': 'workout-short',
+            'רביעי': 'workout-active-rest',
+            'חמישי': 'workout-long',
+            'שישי': 'workout-game',
+            'שבת': 'workout-full-rest',
+        }
+    },
+     {
+        id: 'week-4',
+        name: 'שבוע 4 - רמה: מתחיל',
+        schedule: {
+            'ראשון': 'workout-medium',
+            'שני': 'workout-active-rest',
+            'שלישי': 'workout-short',
+            'רביעי': 'workout-full-rest',
+            'חמישי': 'workout-long',
+            'שישי': 'workout-game',
+            'שבת': 'workout-full-rest',
+        }
+    }
 ];
 
 export const SAFETY_DISCLAIMER: ContentSection = {

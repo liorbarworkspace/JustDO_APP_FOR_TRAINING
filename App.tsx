@@ -7,8 +7,9 @@ import AddExerciseModal from './components/AddExerciseModal';
 import EditPlannedExerciseModal from './components/EditPlannedExerciseModal';
 import ExerciseFormModal from './components/ExerciseFormModal';
 import ConfirmationModal from './components/ConfirmationModal';
-import { PRINCIPLES, PAIN_MANAGEMENT, FUTURE_PLAN, CONCLUSION, INITIAL_WORKOUT_TEMPLATES, INITIAL_EXERCISE_LIBRARY } from './constants';
-import type { ContentSection, WorkoutTemplate, CompletionLog, Exercise, PlannedExercise, ID } from './types';
+import TemplateFormModal from './components/TemplateFormModal';
+import { PRINCIPLES, PAIN_MANAGEMENT, FUTURE_PLAN, CONCLUSION, INITIAL_WORKOUT_TEMPLATES, INITIAL_EXERCISE_LIBRARY, INITIAL_WEEKLY_PLANS } from './constants';
+import type { ContentSection, WorkoutTemplate, CompletionLog, Exercise, PlannedExercise, ID, WeeklyPlan, CompletionLogEntry } from './types';
 
 type Tab = 'plan' | 'progress' | 'library' | 'info';
 
@@ -32,51 +33,49 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>('plan');
   
   const [exerciseLibrary, setExerciseLibrary] = useState<Exercise[]>(() => {
-    try {
-      const saved = localStorage.getItem('exerciseLibrary');
-      return saved ? JSON.parse(saved) : INITIAL_EXERCISE_LIBRARY;
-    } catch { return INITIAL_EXERCISE_LIBRARY; }
+    try { const saved = localStorage.getItem('exerciseLibrary'); return saved ? JSON.parse(saved) : INITIAL_EXERCISE_LIBRARY; } catch { return INITIAL_EXERCISE_LIBRARY; }
   });
 
-  const [workoutPlan, setWorkoutPlan] = useState<WorkoutTemplate[]>(() => {
-    try {
-      const saved = localStorage.getItem('workoutPlan');
-      return saved ? JSON.parse(saved) : INITIAL_WORKOUT_TEMPLATES;
-    } catch { return INITIAL_WORKOUT_TEMPLATES; }
+  const [workoutTemplates, setWorkoutTemplates] = useState<WorkoutTemplate[]>(() => {
+    try { const saved = localStorage.getItem('workoutTemplates'); return saved ? JSON.parse(saved) : INITIAL_WORKOUT_TEMPLATES; } catch { return INITIAL_WORKOUT_TEMPLATES; }
   });
+  
+  const [weeklyPlans, setWeeklyPlans] = useState<WeeklyPlan[]>(() => {
+     try { const saved = localStorage.getItem('weeklyPlans'); return saved ? JSON.parse(saved) : INITIAL_WEEKLY_PLANS; } catch { return INITIAL_WEEKLY_PLANS; }
+  });
+
+  const [activeWeeklyPlanId, setActiveWeeklyPlanId] = useState<ID>(() => weeklyPlans[0]?.id || '');
 
   const [completionLog, setCompletionLog] = useState<CompletionLog>(() => {
-    try {
-      const saved = localStorage.getItem('workoutCompletionLog');
-      return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
+    try { const saved = localStorage.getItem('workoutCompletionLog'); return saved ? JSON.parse(saved) : {}; } catch { return {}; }
   });
 
   // Modals state
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isAddExerciseModalOpen, setIsAddExerciseModalOpen] = useState(false);
   const [exerciseToAdd, setExerciseToAdd] = useState<Exercise | null>(null);
+  const [templateToAddTo, setTemplateToAddTo] = useState<ID | null>(null);
+
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [exerciseToEdit, setExerciseToEdit] = useState<{workoutId: ID, exercise: PlannedExercise} | null>(null);
+  
   const [isExerciseFormModalOpen, setIsExerciseFormModalOpen] = useState(false);
   const [exerciseToEditInLibrary, setExerciseToEditInLibrary] = useState<Exercise | null>(null);
+  
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [exerciseIdToDelete, setExerciseIdToDelete] = useState<ID | null>(null);
+  const [idToDelete, setIdToDelete] = useState<{type: 'exercise' | 'template', id: ID} | null>(null);
+  
+  const [isTemplateFormModalOpen, setIsTemplateFormModalOpen] = useState(false);
+  const [templateToEdit, setTemplateToEdit] = useState<WorkoutTemplate | null>(null);
 
-  useEffect(() => {
-    localStorage.setItem('exerciseLibrary', JSON.stringify(exerciseLibrary));
-  }, [exerciseLibrary]);
 
-  useEffect(() => {
-    localStorage.setItem('workoutPlan', JSON.stringify(workoutPlan));
-  }, [workoutPlan]);
-
-  useEffect(() => {
-    localStorage.setItem('workoutCompletionLog', JSON.stringify(completionLog));
-  }, [completionLog]);
+  useEffect(() => { localStorage.setItem('exerciseLibrary', JSON.stringify(exerciseLibrary)); }, [exerciseLibrary]);
+  useEffect(() => { localStorage.setItem('workoutTemplates', JSON.stringify(workoutTemplates)); }, [workoutTemplates]);
+  useEffect(() => { localStorage.setItem('weeklyPlans', JSON.stringify(weeklyPlans)); }, [weeklyPlans]);
+  useEffect(() => { localStorage.setItem('workoutCompletionLog', JSON.stringify(completionLog)); }, [completionLog]);
 
   // --- Completion Log Handlers ---
-  const handleUpdateCompletion = (date: string, workoutTitle: string, completedExercises: { [planInstanceId: string]: PlannedExercise }) => {
-    setCompletionLog(prev => ({ ...prev, [date]: { workoutTitle, completedExercises } }));
+  const handleUpdateCompletion = (date: string, logEntry: CompletionLogEntry) => {
+    setCompletionLog(prev => ({ ...prev, [date]: logEntry }));
   };
 
   const handleRemoveCompletion = (date: string) => {
@@ -87,35 +86,23 @@ function App() {
     });
   };
 
-  // --- Workout Plan Handlers ---
-  const handleOpenAddModal = (exercise: Exercise) => {
-    setExerciseToAdd(exercise);
-    setIsAddModalOpen(true);
+  // --- Weekly Plan Schedule Handler ---
+  const handleUpdateWeeklyPlanSchedule = (planId: ID, day: string, templateId: ID | null) => {
+      setWeeklyPlans(prev => prev.map(plan => 
+          plan.id === planId
+          ? { ...plan, schedule: { ...plan.schedule, [day]: templateId } }
+          : plan
+      ));
   };
 
-  const handleAddExerciseToPlan = (workoutId: ID) => {
-    if (!exerciseToAdd) return;
-    const newPlannedExercise: PlannedExercise = {
-        ...exerciseToAdd,
-        planInstanceId: crypto.randomUUID(),
-    };
-
-    setWorkoutPlan(prev => prev.map(workout => 
-        workout.id === workoutId 
-        ? { ...workout, exercises: [...workout.exercises, newPlannedExercise] } 
-        : workout
-    ));
-    setIsAddModalOpen(false);
-    setExerciseToAdd(null);
-  };
-
+  // --- Planned Exercise Handlers (within a template) ---
   const handleOpenEditModal = (workoutId: ID, exercise: PlannedExercise) => {
     setExerciseToEdit({ workoutId, exercise });
     setIsEditModalOpen(true);
   };
 
   const handleUpdatePlannedExercise = (workoutId: ID, updatedExercise: PlannedExercise) => {
-    setWorkoutPlan(prev => prev.map(w => {
+    setWorkoutTemplates(prev => prev.map(w => {
         if (w.id === workoutId) {
             return { ...w, exercises: w.exercises.map(e => e.planInstanceId === updatedExercise.planInstanceId ? updatedExercise : e) };
         }
@@ -124,15 +111,28 @@ function App() {
     setIsEditModalOpen(false);
     setExerciseToEdit(null);
   };
-
-  const handleRemoveExerciseFromPlan = (workoutId: ID, planInstanceId: string) => {
-     setWorkoutPlan(prev => prev.map(w => {
-        if (w.id === workoutId) {
+  
+  const handleRemoveExerciseFromTemplate = (templateId: ID, planInstanceId: string) => {
+     setWorkoutTemplates(prev => prev.map(w => {
+        if (w.id === templateId) {
             return { ...w, exercises: w.exercises.filter(e => e.planInstanceId !== planInstanceId) };
         }
         return w;
     }));
   };
+
+  const handleAddExerciseToTemplate = (templateId: ID, exercise: Exercise) => {
+    const newPlannedExercise: PlannedExercise = {
+        ...exercise,
+        planInstanceId: crypto.randomUUID(),
+    };
+    setWorkoutTemplates(prev => prev.map(t => 
+        t.id === templateId 
+        ? { ...t, exercises: [...t.exercises, newPlannedExercise] }
+        : t
+    ));
+  };
+
 
   // --- Exercise Library Handlers ---
   const handleOpenExerciseForm = (exercise: Exercise | null) => {
@@ -141,7 +141,7 @@ function App() {
   };
 
   const handleSaveExerciseToLibrary = (exercise: Exercise) => {
-    if(exerciseToEditInLibrary) { // Edit mode
+    if('id' in exercise && exercise.id) { // Edit mode
         setExerciseLibrary(prev => prev.map(e => e.id === exercise.id ? exercise : e));
     } else { // Add mode
         setExerciseLibrary(prev => [...prev, { ...exercise, id: crypto.randomUUID() }]);
@@ -150,16 +150,21 @@ function App() {
     setExerciseToEditInLibrary(null);
   };
 
-  const handleConfirmDelete = (exerciseId: ID) => {
-    setExerciseIdToDelete(exerciseId);
+  const handleConfirmDeleteExercise = (exerciseId: ID) => {
+    setIdToDelete({type: 'exercise', id: exerciseId});
     setIsConfirmModalOpen(true);
   };
 
   const handleDeleteExerciseFromLibrary = () => {
-    if (!exerciseIdToDelete) return;
-    setExerciseLibrary(prev => prev.filter(e => e.id !== exerciseIdToDelete));
+    if (!idToDelete || idToDelete.type !== 'exercise') return;
+    setExerciseLibrary(prev => prev.filter(e => e.id !== idToDelete.id));
+    // Also remove from all templates
+    setWorkoutTemplates(prev => prev.map(t => ({
+      ...t,
+      exercises: t.exercises.filter(ex => ex.id !== idToDelete.id)
+    })));
     setIsConfirmModalOpen(false);
-    setExerciseIdToDelete(null);
+    setIdToDelete(null);
   };
 
   const handleDuplicateExercise = (exercise: Exercise) => {
@@ -167,16 +172,65 @@ function App() {
     setExerciseLibrary(prev => [...prev, newExercise]);
   };
 
+  // --- Workout Template Handlers ---
+   const handleOpenTemplateForm = (template: WorkoutTemplate | null) => {
+        setTemplateToEdit(template);
+        setIsTemplateFormModalOpen(true);
+    };
+
+    const handleSaveTemplate = (title: string) => {
+        if (templateToEdit) { // Edit
+            setWorkoutTemplates(prev => prev.map(t => t.id === templateToEdit.id ? { ...t, title } : t));
+        } else { // Create
+            const newTemplate: WorkoutTemplate = {
+                id: crypto.randomUUID(),
+                title: title,
+                type: "אימון מותאם",
+                duration: "",
+                exercises: []
+            };
+            setWorkoutTemplates(prev => [...prev, newTemplate]);
+        }
+        setIsTemplateFormModalOpen(false);
+        setTemplateToEdit(null);
+    };
+
+    const handleConfirmDeleteTemplate = (templateId: ID) => {
+        setIdToDelete({type: 'template', id: templateId});
+        setIsConfirmModalOpen(true);
+    };
+    
+    const handleDeleteTemplate = () => {
+        if (!idToDelete || idToDelete.type !== 'template') return;
+        setWorkoutTemplates(prev => prev.filter(t => t.id !== idToDelete.id));
+        // Also remove from any weekly plans
+        setWeeklyPlans(prev => prev.map(p => {
+          const newSchedule = { ...p.schedule };
+          Object.keys(newSchedule).forEach(day => {
+            if (newSchedule[day] === idToDelete.id) {
+              newSchedule[day] = null;
+            }
+          });
+          return { ...p, schedule: newSchedule };
+        }));
+        setIsConfirmModalOpen(false);
+        setIdToDelete(null);
+    };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'plan':
         return <WorkoutPlanner 
-            workoutPlan={workoutPlan} 
+            weeklyPlans={weeklyPlans}
+            workoutTemplates={workoutTemplates}
+            activeWeeklyPlanId={activeWeeklyPlanId}
+            onSetActiveWeeklyPlanId={setActiveWeeklyPlanId}
             completionLog={completionLog}
             onUpdateCompletion={handleUpdateCompletion}
             onRemoveCompletion={handleRemoveCompletion}
             onEditExercise={handleOpenEditModal}
-            onRemoveExercise={handleRemoveExerciseFromPlan}
+            onRemoveExercise={handleRemoveExerciseFromTemplate}
+            onUpdateSchedule={handleUpdateWeeklyPlanSchedule}
         />;
       case 'progress':
         return <ProgressTracker 
@@ -186,11 +240,21 @@ function App() {
       case 'library':
         return <ExerciseLibrary 
             exerciseLibrary={exerciseLibrary}
-            onAddExerciseToPlan={handleOpenAddModal}
+            workoutTemplates={workoutTemplates}
+            onAddExerciseToPlan={() => {}} // Deprecated - remove?
             onAddNewExercise={() => handleOpenExerciseForm(null)}
             onEditExercise={(ex) => handleOpenExerciseForm(ex)}
-            onDeleteExercise={handleConfirmDelete}
+            onDeleteExercise={handleConfirmDeleteExercise}
             onDuplicateExercise={handleDuplicateExercise}
+            // Template handlers
+            onAddExerciseToTemplate={handleAddExerciseToTemplate}
+            onRemoveExerciseFromTemplate={handleRemoveExerciseFromTemplate}
+            onCreateTemplate={() => handleOpenTemplateForm(null)}
+            onUpdateTemplateTitle={(id, title) => {
+                const template = workoutTemplates.find(t => t.id === id);
+                if(template) handleOpenTemplateForm({...template, title});
+            }}
+            onDeleteTemplate={handleConfirmDeleteTemplate}
         />;
       case 'info':
         return (
@@ -230,12 +294,15 @@ function App() {
     <div className="min-h-screen bg-slate-900 text-gray-200">
       {showWelcomeModal && <WelcomeModal onClose={() => setShowWelcomeModal(false)} />}
       
-      {isAddModalOpen && exerciseToAdd && (
+      {isAddExerciseModalOpen && exerciseToAdd && (
         <AddExerciseModal
             exercise={exerciseToAdd}
-            workoutTemplates={workoutPlan}
-            onClose={() => setIsAddModalOpen(false)}
-            onConfirm={handleAddExerciseToPlan}
+            workoutTemplates={workoutTemplates}
+            onClose={() => setIsAddExerciseModalOpen(false)}
+            onConfirm={(workoutId) => {
+              handleAddExerciseToTemplate(workoutId, exerciseToAdd);
+              setIsAddExerciseModalOpen(false);
+            }}
         />
       )}
 
@@ -251,22 +318,31 @@ function App() {
       {isExerciseFormModalOpen && (
         <ExerciseFormModal
             isOpen={isExerciseFormModalOpen}
-            onClose={() => {
-                setIsExerciseFormModalOpen(false);
-                setExerciseToEditInLibrary(null);
-            }}
+            onClose={() => { setIsExerciseFormModalOpen(false); setExerciseToEditInLibrary(null); }}
             onSave={handleSaveExerciseToLibrary}
             initialData={exerciseToEditInLibrary}
         />
       )}
+      
+       {isTemplateFormModalOpen && (
+        <TemplateFormModal
+            isOpen={isTemplateFormModalOpen}
+            onClose={() => { setIsTemplateFormModalOpen(false); setTemplateToEdit(null); }}
+            onSave={handleSaveTemplate}
+            initialData={templateToEdit}
+        />
+       )}
 
-      {isConfirmModalOpen && (
+      {isConfirmModalOpen && idToDelete && (
         <ConfirmationModal
             isOpen={isConfirmModalOpen}
             onClose={() => setIsConfirmModalOpen(false)}
-            onConfirm={handleDeleteExerciseFromLibrary}
-            title="אישור מחיקת תרגיל"
-            message="האם אתה בטוח שברצונך למחוק תרגיל זה מהספרייה? פעולה זו הינה סופית."
+            onConfirm={idToDelete.type === 'exercise' ? handleDeleteExerciseFromLibrary : handleDeleteTemplate}
+            title={idToDelete.type === 'exercise' ? "אישור מחיקת תרגיל" : "אישור מחיקת תבנית"}
+            message={idToDelete.type === 'exercise' 
+              ? "האם אתה בטוח שברצונך למחוק תרגיל זה מהספרייה? הוא יוסר גם מכל תבניות האימון." 
+              : "האם אתה בטוח שברצונך למחוק תבנית זו? היא תוסר מכל שבועות האימונים."
+            }
         />
       )}
       
@@ -279,7 +355,7 @@ function App() {
                 <div className="flex items-center space-x-2 md:space-x-4">
                     <TabButton tabName="plan" label="תוכנית אימונים" />
                     <TabButton tabName="progress" label="מעקב התקדמות" />
-                    <TabButton tabName="library" label="ספריית תרגילים" />
+                    <TabButton tabName="library" label="ספרייה ועריכה" />
                     <TabButton tabName="info" label="עקרונות ומידע" />
                 </div>
             </div>

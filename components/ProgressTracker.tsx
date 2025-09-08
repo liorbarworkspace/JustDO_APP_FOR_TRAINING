@@ -9,7 +9,7 @@ interface ProgressTrackerProps {
 
 const ProgressTracker: React.FC<ProgressTrackerProps> = ({ completionLog, onRemoveCompletion }) => {
   const completedEntries = Object.entries(completionLog)
-    .sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime());
+    .sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(new Date(dateA).setHours(0,0,0,0)).getTime());
 
   if (completedEntries.length === 0) {
     return (
@@ -37,7 +37,8 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ completionLog, onRemo
                     <p className="text-lg font-bold text-cyan-400">
                         {new Date(date).toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
                     </p>
-                    <p className="text-gray-300">{logEntry.workoutTitle}</p>
+                    <p className="text-gray-300 font-semibold">{logEntry.weeklyPlanName} - יום {logEntry.dayOfWeek}</p>
+                    <p className="text-sm text-gray-400">{logEntry.workoutTemplate.title}</p>
                   </div>
                   <button onClick={() => onRemoveCompletion(date)} className="text-gray-400 hover:text-red-500 transition-colors">
                     <TrashIcon className="w-6 h-6" />
