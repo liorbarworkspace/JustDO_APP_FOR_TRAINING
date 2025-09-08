@@ -1,18 +1,15 @@
 import React from 'react';
 import { ClipboardCheckIcon, TrashIcon } from './icons';
-import type { DailyPlan, CompletionLog } from '../types';
+import type { CompletionLog } from '../types';
 
 interface ProgressTrackerProps {
   completionLog: CompletionLog;
-  workoutPlan: DailyPlan[];
   onRemoveCompletion: (date: string) => void;
 }
 
-const ProgressTracker: React.FC<ProgressTrackerProps> = ({ completionLog, workoutPlan, onRemoveCompletion }) => {
+const ProgressTracker: React.FC<ProgressTrackerProps> = ({ completionLog, onRemoveCompletion }) => {
   const completedEntries = Object.entries(completionLog)
     .sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime());
-    
-  const planMap = new Map<string, DailyPlan>(workoutPlan.map(p => [p.day, p]));
 
   if (completedEntries.length === 0) {
     return (
@@ -31,13 +28,8 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ completionLog, workou
       
       <div className="space-y-6">
         {completedEntries.map(([date, logEntry]) => {
-          const plan = planMap.get(logEntry.workoutDay);
-          if (!plan) return null;
-          
           const completedExercises = Object.values(logEntry.completedExercises);
-          const allExercisesInPlan = plan.activities.flatMap(a => a.exercises);
-          const progress = allExercisesInPlan.length > 0 ? (completedExercises.length / allExercisesInPlan.length) * 100 : 0;
-
+          
           return (
             <div key={date} className="bg-slate-800/50 rounded-lg p-6 border border-slate-700 transition-all duration-300 hover:border-slate-600 hover:shadow-lg">
               <div className="flex justify-between items-start border-b border-slate-700 pb-3 mb-4">
@@ -45,25 +37,15 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ completionLog, workou
                     <p className="text-lg font-bold text-cyan-400">
                         {new Date(date).toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
                     </p>
-                    <p className="text-gray-300">{plan.type} ({logEntry.workoutDay})</p>
+                    <p className="text-gray-300">{logEntry.workoutTitle}</p>
                   </div>
                   <button onClick={() => onRemoveCompletion(date)} className="text-gray-400 hover:text-red-500 transition-colors">
                     <TrashIcon className="w-6 h-6" />
                   </button>
               </div>
 
-              <div className="mb-4">
-                  <div className="flex justify-between mb-1">
-                      <span className="text-base font-medium text-cyan-400">התקדמות באימון</span>
-                      <span className="text-sm font-medium text-cyan-400">{Math.round(progress)}%</span>
-                  </div>
-                  <div className="w-full bg-slate-700 rounded-full h-2.5">
-                      <div className="bg-cyan-600 h-2.5 rounded-full" style={{width: `${progress}%`}}></div>
-                  </div>
-              </div>
-
               <div>
-                <h4 className="font-semibold text-white mb-2">תרגילים שהושלמו:</h4>
+                <h4 className="font-semibold text-white mb-2">תרגילים שהושלמו ({completedExercises.length}):</h4>
                 <ul className="list-none text-gray-400 mt-1 space-y-1">
                   {completedExercises.length > 0 ? completedExercises.map(ex => {
                     const setsRepsString = [

@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import type { Exercise } from '../types';
-import { DumbbellIcon, BodyweightIcon, RingsIcon, JumpRopeIcon, BasketballIcon, ChevronDownIcon, PlusIcon } from './icons';
+import { DumbbellIcon, BodyweightIcon, RingsIcon, JumpRopeIcon, BasketballIcon, ChevronDownIcon, PlusIcon, EditIcon, TrashIcon, DuplicateIcon } from './icons';
 
 interface ExerciseCardProps {
   exercise: Exercise;
   onAddToPlan?: (exercise: Exercise) => void;
+  onEdit?: (exercise: Exercise) => void;
+  onDelete?: (exerciseId: string) => void;
+  onDuplicate?: (exercise: Exercise) => void;
   showAddButton?: boolean;
+  showAdminControls?: boolean;
 }
 
 const equipmentIconMap: { [key: string]: React.ReactNode } = {
@@ -27,8 +31,14 @@ const getEquipmentIcon = (equipmentString: string) => {
   return <BodyweightIcon className="w-5 h-5 inline-block ml-2" />;
 };
 
+const levelColorMap = {
+    'מתחיל': 'bg-green-900 text-green-300',
+    'בינוני': 'bg-yellow-900 text-yellow-300',
+    'מתקדם': 'bg-red-900 text-red-300',
+};
 
-const ExerciseCard: React.FC<ExerciseCardProps> = ({ exercise, onAddToPlan, showAddButton = false }) => {
+
+const ExerciseCard: React.FC<ExerciseCardProps> = ({ exercise, onAddToPlan, onEdit, onDelete, onDuplicate, showAddButton = false, showAdminControls = false }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const setsRepsString = [
@@ -39,11 +49,23 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({ exercise, onAddToPlan, show
 
   return (
     <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg border border-slate-700 transition-all duration-300 hover:shadow-cyan-500/20 hover:border-slate-600 flex flex-col">
-      <img className="w-full h-48 object-cover" src={exercise.imageUrl} alt={exercise.name} />
+      <div className="relative">
+        <img className="w-full h-48 object-cover" src={exercise.imageUrl} alt={exercise.name} />
+        {showAdminControls && (
+          <div className="absolute top-2 left-2 flex gap-2">
+            <button onClick={() => onEdit?.(exercise)} className="p-2 bg-slate-900/70 rounded-full text-cyan-400 hover:text-white hover:bg-cyan-600 transition-colors"><EditIcon className="w-5 h-5"/></button>
+            <button onClick={() => onDuplicate?.(exercise)} className="p-2 bg-slate-900/70 rounded-full text-amber-400 hover:text-white hover:bg-amber-500 transition-colors"><DuplicateIcon className="w-5 h-5"/></button>
+            <button onClick={() => onDelete?.(exercise.id)} className="p-2 bg-slate-900/70 rounded-full text-red-400 hover:text-white hover:bg-red-600 transition-colors"><TrashIcon className="w-5 h-5"/></button>
+          </div>
+        )}
+      </div>
       <div className="p-4 flex flex-col flex-grow">
         <div className="flex justify-between items-start mb-2">
             <h3 className="text-xl font-bold text-cyan-400">{exercise.name}</h3>
-            <span className="bg-cyan-900 text-cyan-300 text-xs font-semibold px-2.5 py-0.5 rounded-full">{exercise.category}</span>
+            <div className="flex flex-col items-end gap-1">
+                <span className="bg-cyan-900 text-cyan-300 text-xs font-semibold px-2.5 py-0.5 rounded-full">{exercise.category}</span>
+                <span className={`${levelColorMap[exercise.level]} text-xs font-semibold px-2.5 py-0.5 rounded-full`}>{exercise.level}</span>
+            </div>
         </div>
         <div className="flex items-center text-sm text-gray-400 mb-4">
           {getEquipmentIcon(exercise.equipment)}

@@ -5,8 +5,10 @@ import ExerciseLibrary from './components/ExerciseLibrary';
 import ProgressTracker from './components/ProgressTracker';
 import AddExerciseModal from './components/AddExerciseModal';
 import EditPlannedExerciseModal from './components/EditPlannedExerciseModal';
-import { PRINCIPLES, PAIN_MANAGEMENT, FUTURE_PLAN, CONCLUSION, INITIAL_MONTH_1_PLAN } from './constants';
-import type { ContentSection, DailyPlan, CompletionLog, Exercise, PlannedExercise } from './types';
+import ExerciseFormModal from './components/ExerciseFormModal';
+import ConfirmationModal from './components/ConfirmationModal';
+import { PRINCIPLES, PAIN_MANAGEMENT, FUTURE_PLAN, CONCLUSION, INITIAL_WORKOUT_TEMPLATES, INITIAL_EXERCISE_LIBRARY } from './constants';
+import type { ContentSection, WorkoutTemplate, CompletionLog, Exercise, PlannedExercise, ID } from './types';
 
 type Tab = 'plan' | 'progress' | 'library' | 'info';
 
@@ -29,25 +31,40 @@ function App() {
   const [showWelcomeModal, setShowWelcomeModal] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<Tab>('plan');
   
-  const [workoutPlan, setWorkoutPlan] = useState<DailyPlan[]>(() => {
+  const [exerciseLibrary, setExerciseLibrary] = useState<Exercise[]>(() => {
     try {
-      const savedPlan = localStorage.getItem('workoutPlan');
-      return savedPlan ? JSON.parse(savedPlan) : INITIAL_MONTH_1_PLAN;
-    } catch (e) { return INITIAL_MONTH_1_PLAN; }
+      const saved = localStorage.getItem('exerciseLibrary');
+      return saved ? JSON.parse(saved) : INITIAL_EXERCISE_LIBRARY;
+    } catch { return INITIAL_EXERCISE_LIBRARY; }
+  });
+
+  const [workoutPlan, setWorkoutPlan] = useState<WorkoutTemplate[]>(() => {
+    try {
+      const saved = localStorage.getItem('workoutPlan');
+      return saved ? JSON.parse(saved) : INITIAL_WORKOUT_TEMPLATES;
+    } catch { return INITIAL_WORKOUT_TEMPLATES; }
   });
 
   const [completionLog, setCompletionLog] = useState<CompletionLog>(() => {
     try {
-      const savedLog = localStorage.getItem('workoutCompletionLog');
-      return savedLog ? JSON.parse(savedLog) : {};
-    } catch (e) { return {}; }
+      const saved = localStorage.getItem('workoutCompletionLog');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
   });
 
+  // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [exerciseToAdd, setExerciseToAdd] = useState<Exercise | null>(null);
-
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [exerciseToEdit, setExerciseToEdit] = useState<{day: string, exercise: PlannedExercise} | null>(null);
+  const [exerciseToEdit, setExerciseToEdit] = useState<{workoutId: ID, exercise: PlannedExercise} | null>(null);
+  const [isExerciseFormModalOpen, setIsExerciseFormModalOpen] = useState(false);
+  const [exerciseToEditInLibrary, setExerciseToEditInLibrary] = useState<Exercise | null>(null);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [exerciseIdToDelete, setExerciseIdToDelete] = useState<ID | null>(null);
+
+  useEffect(() => {
+    localStorage.setItem('exerciseLibrary', JSON.stringify(exerciseLibrary));
+  }, [exerciseLibrary]);
 
   useEffect(() => {
     localStorage.setItem('workoutPlan', JSON.stringify(workoutPlan));
@@ -57,8 +74,9 @@ function App() {
     localStorage.setItem('workoutCompletionLog', JSON.stringify(completionLog));
   }, [completionLog]);
 
-  const handleUpdateCompletion = (date: string, workoutDay: string, completedExercises: { [planInstanceId: string]: PlannedExercise }) => {
-    setCompletionLog(prev => ({ ...prev, [date]: { workoutDay, completedExercises } }));
+  // --- Completion Log Handlers ---
+  const handleUpdateCompletion = (date: string, workoutTitle: string, completedExercises: { [planInstanceId: string]: PlannedExercise }) => {
+    setCompletionLog(prev => ({ ...prev, [date]: { workoutTitle, completedExercises } }));
   };
 
   const handleRemoveCompletion = (date: string) => {
@@ -69,72 +87,84 @@ function App() {
     });
   };
 
+  // --- Workout Plan Handlers ---
   const handleOpenAddModal = (exercise: Exercise) => {
     setExerciseToAdd(exercise);
     setIsAddModalOpen(true);
   };
 
-  const handleAddExerciseToPlan = (day: string) => {
+  const handleAddExerciseToPlan = (workoutId: ID) => {
     if (!exerciseToAdd) return;
     const newPlannedExercise: PlannedExercise = {
         ...exerciseToAdd,
         planInstanceId: crypto.randomUUID(),
     };
 
-    setWorkoutPlan(prevPlan => {
-        return prevPlan.map(dailyPlan => {
-            if (dailyPlan.day === day) {
-                const newActivities = [...dailyPlan.activities];
-                let targetActivity = newActivities.find(a => a.title !== 'חימום' && a.title !== 'שחרור ומתיחות' && a.title !== 'התאוששות');
-                if(!targetActivity) {
-                    newActivities.push({ title: 'תרגילים נוספים', details: '', exercises: [] });
-                    targetActivity = newActivities[newActivities.length - 1];
-                }
-                targetActivity.exercises.push(newPlannedExercise);
-                return { ...dailyPlan, activities: newActivities };
-            }
-            return dailyPlan;
-        });
-    });
+    setWorkoutPlan(prev => prev.map(workout => 
+        workout.id === workoutId 
+        ? { ...workout, exercises: [...workout.exercises, newPlannedExercise] } 
+        : workout
+    ));
     setIsAddModalOpen(false);
     setExerciseToAdd(null);
   };
 
-  const handleOpenEditModal = (day: string, exercise: PlannedExercise) => {
-    setExerciseToEdit({ day, exercise });
+  const handleOpenEditModal = (workoutId: ID, exercise: PlannedExercise) => {
+    setExerciseToEdit({ workoutId, exercise });
     setIsEditModalOpen(true);
   };
 
-  const handleUpdatePlannedExercise = (day: string, updatedExercise: PlannedExercise) => {
-    setWorkoutPlan(prevPlan => prevPlan.map(d => {
-        if (d.day === day) {
-            return {
-                ...d,
-                activities: d.activities.map(a => ({
-                    ...a,
-                    exercises: a.exercises.map(e => e.planInstanceId === updatedExercise.planInstanceId ? updatedExercise : e)
-                }))
-            };
+  const handleUpdatePlannedExercise = (workoutId: ID, updatedExercise: PlannedExercise) => {
+    setWorkoutPlan(prev => prev.map(w => {
+        if (w.id === workoutId) {
+            return { ...w, exercises: w.exercises.map(e => e.planInstanceId === updatedExercise.planInstanceId ? updatedExercise : e) };
         }
-        return d;
+        return w;
     }));
     setIsEditModalOpen(false);
     setExerciseToEdit(null);
   };
 
-  const handleRemoveExerciseFromPlan = (day: string, planInstanceId: string) => {
-     setWorkoutPlan(prevPlan => prevPlan.map(d => {
-        if (d.day === day) {
-            return {
-                ...d,
-                activities: d.activities.map(a => ({
-                    ...a,
-                    exercises: a.exercises.filter(e => e.planInstanceId !== planInstanceId)
-                }))
-            };
+  const handleRemoveExerciseFromPlan = (workoutId: ID, planInstanceId: string) => {
+     setWorkoutPlan(prev => prev.map(w => {
+        if (w.id === workoutId) {
+            return { ...w, exercises: w.exercises.filter(e => e.planInstanceId !== planInstanceId) };
         }
-        return d;
+        return w;
     }));
+  };
+
+  // --- Exercise Library Handlers ---
+  const handleOpenExerciseForm = (exercise: Exercise | null) => {
+    setExerciseToEditInLibrary(exercise);
+    setIsExerciseFormModalOpen(true);
+  };
+
+  const handleSaveExerciseToLibrary = (exercise: Exercise) => {
+    if(exerciseToEditInLibrary) { // Edit mode
+        setExerciseLibrary(prev => prev.map(e => e.id === exercise.id ? exercise : e));
+    } else { // Add mode
+        setExerciseLibrary(prev => [...prev, { ...exercise, id: crypto.randomUUID() }]);
+    }
+    setIsExerciseFormModalOpen(false);
+    setExerciseToEditInLibrary(null);
+  };
+
+  const handleConfirmDelete = (exerciseId: ID) => {
+    setExerciseIdToDelete(exerciseId);
+    setIsConfirmModalOpen(true);
+  };
+
+  const handleDeleteExerciseFromLibrary = () => {
+    if (!exerciseIdToDelete) return;
+    setExerciseLibrary(prev => prev.filter(e => e.id !== exerciseIdToDelete));
+    setIsConfirmModalOpen(false);
+    setExerciseIdToDelete(null);
+  };
+
+  const handleDuplicateExercise = (exercise: Exercise) => {
+    const newExercise = { ...exercise, name: `${exercise.name} (עותק)`, id: crypto.randomUUID() };
+    setExerciseLibrary(prev => [...prev, newExercise]);
   };
 
   const renderContent = () => {
@@ -151,11 +181,17 @@ function App() {
       case 'progress':
         return <ProgressTracker 
             completionLog={completionLog}
-            workoutPlan={workoutPlan}
             onRemoveCompletion={handleRemoveCompletion}
         />;
       case 'library':
-        return <ExerciseLibrary onAddExercise={handleOpenAddModal} />;
+        return <ExerciseLibrary 
+            exerciseLibrary={exerciseLibrary}
+            onAddExerciseToPlan={handleOpenAddModal}
+            onAddNewExercise={() => handleOpenExerciseForm(null)}
+            onEditExercise={(ex) => handleOpenExerciseForm(ex)}
+            onDeleteExercise={handleConfirmDelete}
+            onDuplicateExercise={handleDuplicateExercise}
+        />;
       case 'info':
         return (
           <>
@@ -197,7 +233,7 @@ function App() {
       {isAddModalOpen && exerciseToAdd && (
         <AddExerciseModal
             exercise={exerciseToAdd}
-            workoutPlan={workoutPlan}
+            workoutTemplates={workoutPlan}
             onClose={() => setIsAddModalOpen(false)}
             onConfirm={handleAddExerciseToPlan}
         />
@@ -205,10 +241,32 @@ function App() {
 
       {isEditModalOpen && exerciseToEdit && (
         <EditPlannedExerciseModal
-            day={exerciseToEdit.day}
+            workoutId={exerciseToEdit.workoutId}
             exercise={exerciseToEdit.exercise}
             onClose={() => setIsEditModalOpen(false)}
             onSave={handleUpdatePlannedExercise}
+        />
+      )}
+
+      {isExerciseFormModalOpen && (
+        <ExerciseFormModal
+            isOpen={isExerciseFormModalOpen}
+            onClose={() => {
+                setIsExerciseFormModalOpen(false);
+                setExerciseToEditInLibrary(null);
+            }}
+            onSave={handleSaveExerciseToLibrary}
+            initialData={exerciseToEditInLibrary}
+        />
+      )}
+
+      {isConfirmModalOpen && (
+        <ConfirmationModal
+            isOpen={isConfirmModalOpen}
+            onClose={() => setIsConfirmModalOpen(false)}
+            onConfirm={handleDeleteExerciseFromLibrary}
+            title="אישור מחיקת תרגיל"
+            message="האם אתה בטוח שברצונך למחוק תרגיל זה מהספרייה? פעולה זו הינה סופית."
         />
       )}
       

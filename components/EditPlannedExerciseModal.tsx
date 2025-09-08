@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
-import type { PlannedExercise } from '../types';
+import type { PlannedExercise, ID } from '../types';
 
 interface EditPlannedExerciseModalProps {
-    day: string;
+    workoutId: ID;
     exercise: PlannedExercise;
     onClose: () => void;
-    onSave: (day: string, updatedExercise: PlannedExercise) => void;
+    onSave: (workoutId: ID, updatedExercise: PlannedExercise) => void;
 }
 
-const EditPlannedExerciseModal: React.FC<EditPlannedExerciseModalProps> = ({ day, exercise, onClose, onSave }) => {
+const EditPlannedExerciseModal: React.FC<EditPlannedExerciseModalProps> = ({ workoutId, exercise, onClose, onSave }) => {
     const [editedExercise, setEditedExercise] = useState<PlannedExercise>(exercise);
 
     const handleSave = () => {
-        onSave(day, editedExercise);
+        onSave(workoutId, editedExercise);
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

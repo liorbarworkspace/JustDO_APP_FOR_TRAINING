@@ -1,9 +1,10 @@
-import type { Exercise, DailyPlan, ContentSection, PlannedExercise } from './types';
+import type { Exercise, ContentSection, PlannedExercise, WorkoutTemplate } from './types';
 
 export const EXERCISE_CATEGORIES = ['כוח', 'ליבה', 'אירובי', 'קליסטניקס', 'כדורסל', 'חימום', 'גמישות'] as const;
+export const EXERCISE_LEVELS = ['מתחיל', 'בינוני', 'מתקדם'] as const;
 
 
-export const EXERCISE_LIBRARY: Exercise[] = [
+export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
   // כוח
   {
     id: 'force-1',
@@ -15,6 +16,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "להקפיד על תנועה מבוקרת, אין להוריד את המשקולות מהר מדי.",
     imageUrl: "https://picsum.photos/seed/dumbbell-press/400/300",
     category: "כוח",
+    level: "מתחיל",
   },
   {
     id: 'force-2',
@@ -26,6 +28,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "להקפיד על גב ישר, להימנע משקיעה של הגב התחתון.",
     imageUrl: "https://picsum.photos/seed/incline-pushup/400/300",
     category: "כוח",
+    level: "מתחיל",
   },
   {
     id: 'force-3',
@@ -37,6 +40,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "להקפיד על גב ישר ויציב, להימנע מסיבוב הגוף.",
     imageUrl: "https://picsum.photos/seed/dumbbell-row/400/300",
     category: "כוח",
+    level: "מתחיל",
   },
   {
     id: 'force-4',
@@ -48,6 +52,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "יש לשמור על גב ישר ומבט לפנים. להקפיד שהברכיים לא יעברו את קו הבהונות.",
     imageUrl: "https://picsum.photos/seed/squat/400/300",
     category: "כוח",
+    level: "מתחיל",
   },
   {
     id: 'force-5',
@@ -59,6 +64,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "יש לשמור על פלג גוף עליון ישר ויציב.",
     imageUrl: "https://picsum.photos/seed/lunge/400/300",
     category: "כוח",
+    level: "מתחיל",
   },
   // ליבה
   {
@@ -71,6 +77,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "להקפיד על נשימה סדירה. יש להפסיק מיד אם מופיע כאב גב.",
     imageUrl: "https://picsum.photos/seed/plank/400/300",
     category: "ליבה",
+    level: "מתחיל",
   },
    // קליסטניקס
   {
@@ -83,6 +90,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "תרגיל זה הוא בסיס מצוין למתח. הוא מפתח כוח בגב ובזרועות ללא עומס גדול מדי.",
     imageUrl: "https://picsum.photos/seed/ring-row/400/300",
     category: "קליסטניקס",
+    level: "מתחיל",
   },
   // אירובי
   {
@@ -95,6 +103,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "כלי מצוין לחימום אירובי ולשיפור קואורדינציה.",
     imageUrl: "https://picsum.photos/seed/jumprope/400/300",
     category: "אירובי",
+    level: "מתחיל",
   },
   // כדורסל
   {
@@ -107,6 +116,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "יש להתמקד בשליטה ודיוק, במיוחד בכדרור ביד החלשה.",
     imageUrl: "https://picsum.photos/seed/basketball/400/300",
     category: "כדורסל",
+    level: "מתחיל",
   },
   {
     id: 'basketball-2',
@@ -118,6 +128,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "חשוב לבצע חימום טוב לפני המשחק ולשמור על שתיית מים.",
     imageUrl: "https://picsum.photos/seed/basketball-game/400/300",
     category: "כדורסל",
+    level: "בינוני",
   },
   // חימום
   {
@@ -130,6 +141,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "בצעו את התנועה לאט ובטווח תנועה מלא.",
     imageUrl: "https://picsum.photos/seed/arm-circles/400/300",
     category: "חימום",
+    level: "מתחיל",
   },
   {
     id: 'warmup-2',
@@ -141,6 +153,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "שמרו על גב ישר והפעילו את שרירי הבטן.",
     imageUrl: "https://picsum.photos/seed/high-knees/400/300",
     category: "חימום",
+    level: "מתחיל",
   },
   // גמישות
   {
@@ -153,6 +166,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "הימנעו מנעילת הברך ושמרו על גב יחסית ישר.",
     imageUrl: "https://picsum.photos/seed/hamstring-stretch/400/300",
     category: "גמישות",
+    level: "מתחיל",
   },
   {
     id: 'flex-2',
@@ -164,12 +178,12 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "נשמו עמוק והרגישו את המתיחה בגב התחתון.",
     imageUrl: "https://picsum.photos/seed/childs-pose/400/300",
     category: "גמישות",
+    level: "מתחיל",
   },
 ];
 
-const exerciseMap = new Map<string, Exercise>(EXERCISE_LIBRARY.map(e => [e.id, e]));
-
 const createPlannedExercises = (ids: string[]): PlannedExercise[] => {
+    const exerciseMap = new Map<string, Exercise>(INITIAL_EXERCISE_LIBRARY.map(e => [e.id, e]));
     return ids.map(id => {
         const exercise = exerciseMap.get(id);
         if (!exercise) throw new Error(`Exercise with id ${id} not found`);
@@ -181,124 +195,58 @@ const createPlannedExercises = (ids: string[]): PlannedExercise[] => {
 };
 
 
-export const INITIAL_MONTH_1_PLAN: DailyPlan[] = [
+export const INITIAL_WORKOUT_TEMPLATES: WorkoutTemplate[] = [
     {
-      day: "ראשון",
-      type: "אימון קצר",
-      duration: "(כ-25 דק')",
-      activities: [
-        {
-            title: "חימום",
-            duration: "5 דק'",
-            details: "מתיחות דינמיות. דלגית 5 דק' קלות.",
-            exercises: createPlannedExercises(['warmup-1', 'cardio-1']),
-        },
-        {
-            title: "סטים משולבים",
-            details: "3 סטים לכל תרגיל, 10-15 חזרות לכל סט, 60 שניות מנוחה בין סטים.",
-            exercises: createPlannedExercises(['force-4', 'force-2', 'core-1']),
-        }
-      ]
+        id: 'workout-short',
+        title: "אימון קצר",
+        type: "Full Body",
+        duration: "(כ-25 דק')",
+        exercises: [
+            ...createPlannedExercises(['warmup-1', 'cardio-1']),
+            ...createPlannedExercises(['force-4', 'force-2', 'core-1']),
+        ]
     },
     {
-      day: "שני",
-      type: "מנוחה פעילה",
-      duration: "",
-      activities: [
-        {
-            title: "שחרור ומתיחות",
-            details: "תרגילי מתיחות עדינות לגב ולצוואר. מתיחות לפרק כף היד.",
-            exercises: createPlannedExercises(['flex-1', 'flex-2']),
-        }
-      ]
+        id: 'workout-medium',
+        title: "אימון בינוני",
+        type: "Full Body",
+        duration: "(כ-45 דק')",
+        exercises: [
+            ...createPlannedExercises(['warmup-2', 'cardio-1']),
+            ...createPlannedExercises(['force-1', 'force-3', 'force-5', 'core-1']),
+        ]
     },
     {
-      day: "שלישי",
-      type: "אימון בינוני",
-      duration: "(כ-45 דק')",
-      activities: [
-        {
-            title: "חימום",
-            duration: "5 דק'",
-            details: "מתיחות דינמיות, דלגית 5 דק'.",
-            exercises: createPlannedExercises(['warmup-2', 'cardio-1']),
-        },
-        {
-            title: "כוח וקליסטניקס",
-            details: "2 סטים לכל תרגיל, 10-15 חזרות, 60 שניות מנוחה.",
-            exercises: createPlannedExercises(['force-1', 'force-3', 'force-5']),
-        },
-        {
-            title: "אימון ליבה",
-            details: "3 סטים.",
-            exercises: createPlannedExercises(['core-1']),
-        }
-      ]
+        id: 'workout-long',
+        title: "אימון ארוך",
+        type: "Full Body + Skills",
+        duration: "(כ-60 דק')",
+        exercises: [
+            ...createPlannedExercises(['cardio-1']),
+            ...createPlannedExercises(['basketball-1']),
+            ...createPlannedExercises(['force-4', 'calisthenics-1']),
+        ]
     },
     {
-      day: "רביעי",
-      type: "מנוחה מלאה",
-      duration: "",
-      activities: [
-        {
-            title: "התאוששות",
-            details: "מנוחה מלאה להתאוששות הגוף.",
-            exercises: [],
-        }
-      ]
+        id: 'workout-active-rest',
+        title: "מנוחה פעילה",
+        type: "שחרור ומתיחות",
+        duration: "",
+        exercises: createPlannedExercises(['flex-1', 'flex-2']),
     },
     {
-      day: "חמישי",
-      type: "אימון ארוך",
-      duration: "(כ-60 דק')",
-      activities: [
-        {
-            title: "חימום",
-            duration: "10 דק'",
-            details: "דלגית 10 דק'.",
-            exercises: createPlannedExercises(['cardio-1']),
-        },
-        {
-            title: "מיומנויות כדורסל",
-            duration: "25 דק'",
-            details: "כדרור ביד החלשה והחזקה, קליעה מהמקום, תרגילים משולבים כמו סקוואט עם כדור.",
-            exercises: createPlannedExercises(['basketball-1']),
-        },
-        {
-            title: "אימון כוח",
-            details: "3 סטים, 10-15 חזרות.",
-            exercises: createPlannedExercises(['force-4', 'calisthenics-1']),
-        },
-      ]
+        id: 'workout-game',
+        title: "משחק כדורסל",
+        type: "אימון אופציונלי",
+        duration: "",
+        exercises: createPlannedExercises(['basketball-2']),
     },
-    {
-      day: "שישי",
-      type: "אימון אופציונלי / מנוחה",
-      duration: "",
-      activities: [
-        {
-            title: "משחק כדורסל",
-            details: "אם מתאפשר, משחק כדורסל הוא דרך מצוינת לסיים את השבוע.",
-            exercises: createPlannedExercises(['basketball-2']),
-        },
-        {
-            title: "אחרת",
-            details: "מנוחה מלאה להתאוששות הגוף.",
-            exercises: [],
-        }
-      ]
-    },
-    {
-      day: "שבת",
-      type: "מנוחה מלאה",
-      duration: "",
-      activities: [
-        {
-            title: "התאוששות",
-            details: "מנוחה מלאה להתאוששות.",
-            exercises: [],
-        }
-      ]
+     {
+        id: 'workout-full-rest',
+        title: "מנוחה מלאה",
+        type: "התאוששות",
+        duration: "",
+        exercises: [],
     },
 ];
 

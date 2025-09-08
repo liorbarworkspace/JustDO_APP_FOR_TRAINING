@@ -12,25 +12,21 @@ export interface Exercise {
   safetyNotes: string;
   imageUrl: string;
   category: 'כוח' | 'ליבה' | 'אירובי' | 'קליסטניקס' | 'כדורסל' | 'חימום' | 'גמישות';
+  level: 'מתחיל' | 'בינוני' | 'מתקדם';
 }
 
 export interface PlannedExercise extends Exercise {
     planInstanceId: ID;
 }
 
-export interface WorkoutActivity {
+export interface WorkoutTemplate {
+    id: ID;
     title: string;
-    duration?: string;
-    details: string;
+    type: string;
+    duration: string;
     exercises: PlannedExercise[];
 }
 
-export interface DailyPlan {
-  day: string;
-  type: string;
-  duration: string;
-  activities: WorkoutActivity[];
-}
 
 export interface ContentSection {
   title: string;
@@ -39,7 +35,7 @@ export interface ContentSection {
 
 export type CompletionLog = {
   [date: string]: {
-    workoutDay: string;
+    workoutTitle: string;
     completedExercises: { [planInstanceId: string]: PlannedExercise };
   };
 };
