@@ -48,27 +48,37 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({ exercise, onAddToPlan, onEd
   ].filter(Boolean).join(' ');
 
   return (
-    <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg border border-slate-700 transition-all duration-300 hover:shadow-cyan-500/20 hover:border-slate-600 flex flex-col relative">
-      {showAdminControls && (
-        <div className="absolute top-2 left-2 flex gap-2 z-10">
-          <button onClick={() => onEdit?.(exercise)} className="p-2 bg-slate-900/70 rounded-full text-cyan-400 hover:text-white hover:bg-cyan-600 transition-colors"><EditIcon className="w-5 h-5"/></button>
-          <button onClick={() => onDuplicate?.(exercise)} className="p-2 bg-slate-900/70 rounded-full text-amber-400 hover:text-white hover:bg-amber-500 transition-colors"><DuplicateIcon className="w-5 h-5"/></button>
-          <button onClick={() => onDelete?.(exercise.id)} className="p-2 bg-slate-900/70 rounded-full text-red-400 hover:text-white hover:bg-red-600 transition-colors"><TrashIcon className="w-5 h-5"/></button>
-        </div>
-      )}
+    <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg border border-slate-700 transition-all duration-300 hover:shadow-cyan-500/20 hover:border-slate-600 flex flex-col">
       <div className="p-4 flex flex-col flex-grow">
-        <div className="flex justify-between items-start mb-2">
-            <h3 className="text-xl font-bold text-cyan-400">{exercise.name}</h3>
-            <div className="flex flex-col items-end gap-1">
-                <span className="bg-cyan-900 text-cyan-300 text-xs font-semibold px-2.5 py-0.5 rounded-full">{exercise.category}</span>
-                <span className={`${levelColorMap[exercise.level]} text-xs font-semibold px-2.5 py-0.5 rounded-full`}>{exercise.level}</span>
+        
+        {/* Card Header */}
+        <div className="flex justify-between items-start gap-4 mb-2">
+            {/* Title and Tags container */}
+            <div className="flex-grow">
+                <h3 className="text-xl font-bold text-cyan-400">{exercise.name}</h3>
+                <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <span className="bg-cyan-900 text-cyan-300 text-xs font-semibold px-2.5 py-0.5 rounded-full">{exercise.category}</span>
+                    <span className={`${levelColorMap[exercise.level]} text-xs font-semibold px-2.5 py-0.5 rounded-full`}>{exercise.level}</span>
+                </div>
             </div>
+            
+            {/* Admin Controls */}
+            {showAdminControls && (
+              <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
+                <button onClick={() => onEdit?.(exercise)} className="p-2 bg-slate-900/70 rounded-full text-cyan-400 hover:text-white hover:bg-cyan-600 transition-colors"><EditIcon className="w-5 h-5"/></button>
+                <button onClick={() => onDuplicate?.(exercise)} className="p-2 bg-slate-900/70 rounded-full text-amber-400 hover:text-white hover:bg-amber-500 transition-colors"><DuplicateIcon className="w-5 h-5"/></button>
+                <button onClick={() => onDelete?.(exercise.id)} className="p-2 bg-slate-900/70 rounded-full text-red-400 hover:text-white hover:bg-red-600 transition-colors"><TrashIcon className="w-5 h-5"/></button>
+              </div>
+            )}
         </div>
-        <div className="flex items-center text-sm text-gray-400 mb-4">
+        
+        {/* Equipment */}
+        <div className="flex items-center text-sm text-gray-400 my-4">
           {getEquipmentIcon(exercise.equipment)}
           <span>{exercise.equipment}</span>
         </div>
 
+        {/* Sets/Reps/Rest */}
         <div className="flex justify-between items-center text-center mb-4 gap-2">
             <div className="bg-slate-700 p-2 rounded-md flex-1">
                 <p className="text-xs text-gray-400">סטים/זמן</p>

@@ -9,6 +9,7 @@ import { PlayIcon, PauseIcon, SkipBackIcon, SkipForwardIcon, ChevronDownIcon } f
 // The user should create a 'sounds' folder in the root directory and place these files inside.
 const FINISH_SOUND_MP3 = '/sounds/finish.mp3';
 const TICKING_SOUND_MP3 = '/sounds/ticking.mp3';
+const RELAXING_SOUND_MP3 = '/sounds/relaxing.mp3'; // Added relaxing sound
 
 type SessionState = 'exercise' | 'rest' | 'finished' | 'idle';
 
@@ -36,6 +37,7 @@ const WorkoutSessionPage: React.FC<{
 }> = ({ weeklyPlans, workoutTemplates, activeWeeklyPlanId }) => {
 
     const tickingSoundRef = useRef<HTMLAudioElement | null>(null);
+    const relaxingSoundRef = useRef<HTMLAudioElement | null>(null);
     const finishSoundRef = useRef<HTMLAudioElement | null>(null);
 
     const todaysWorkout = useMemo(() => {
@@ -69,6 +71,8 @@ const WorkoutSessionPage: React.FC<{
         try {
             tickingSoundRef.current = new Audio(TICKING_SOUND_MP3);
             tickingSoundRef.current.loop = true;
+            relaxingSoundRef.current = new Audio(RELAXING_SOUND_MP3);
+            relaxingSoundRef.current.loop = true;
             finishSoundRef.current = new Audio(FINISH_SOUND_MP3);
         } catch (e) {
             console.error("Failed to create Audio elements. Ensure sound files exist.", e);
@@ -76,6 +80,7 @@ const WorkoutSessionPage: React.FC<{
 
         return () => { // Cleanup on component unmount
             tickingSoundRef.current?.pause();
+            relaxingSoundRef.current?.pause();
             finishSoundRef.current?.pause();
         };
     }, []);
@@ -89,6 +94,7 @@ const WorkoutSessionPage: React.FC<{
             setSessionState('exercise');
             setIsDetailsExpanded(false);
             tickingSoundRef.current?.pause();
+            relaxingSoundRef.current?.pause();
         }
     }, [currentExercise]);
     
@@ -97,14 +103,23 @@ const WorkoutSessionPage: React.FC<{
         let interval: number | undefined;
 
         if (isTimerRunning && timer > 0) {
-            tickingSoundRef.current?.play().catch(e => console.error("Error playing ticking sound:", e));
+            if (sessionState === 'exercise') {
+                relaxingSoundRef.current?.pause();
+                tickingSoundRef.current?.play().catch(e => console.error("Error playing ticking sound:", e));
+            } else if (sessionState === 'rest') {
+                tickingSoundRef.current?.pause();
+                relaxingSoundRef.current?.play().catch(e => console.error("Error playing relaxing sound:", e));
+            }
+            
             interval = window.setInterval(() => {
                 setTimer(prev => prev - 1);
             }, 1000);
         } else if (isTimerRunning && timer === 0) {
             setIsTimerRunning(false);
             tickingSoundRef.current?.pause();
+            relaxingSoundRef.current?.pause();
             if(tickingSoundRef.current) tickingSoundRef.current.currentTime = 0;
+            if(relaxingSoundRef.current) relaxingSoundRef.current.currentTime = 0;
             
             finishSoundRef.current?.play().catch(e => console.error("Error playing finish sound:", e));
 
@@ -131,6 +146,7 @@ const WorkoutSessionPage: React.FC<{
             }
         } else if (!isTimerRunning) {
              tickingSoundRef.current?.pause();
+             relaxingSoundRef.current?.pause();
         }
         
         return () => { // Cleanup
@@ -147,7 +163,7 @@ const WorkoutSessionPage: React.FC<{
     
     const handlePrevExercise = () => {
         if (currentExerciseIndex > 0) {
-            setCurrentExerciseIndex(prev => prev - 1);
+            setCurrentExerciseIndex(prev => prev + 1);
         }
     };
 
@@ -199,7 +215,7 @@ const WorkoutSessionPage: React.FC<{
 
     const getStatusText = () => {
         if(sessionState === 'rest') return 'מנוחה';
-        if(sessionState === 'finished') return 'התרגיל הסתיים!';
+        if(sessionState === 'finished') return 'התרגIL הסתיים!';
         return `סט ${currentSet} מתוך ${totalSets}`;
     }
 

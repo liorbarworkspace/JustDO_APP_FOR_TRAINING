@@ -52,17 +52,23 @@ const universalParseLine = (line: string, delimiter: string): string[] => {
 
 const parseExercisesCSV = (csvText: string): Exercise[] => {
     const newExercises: Exercise[] = [];
-    const lines = csvText.trim().split(/\r?\n/);
-    if (lines.length < 2) return []; // Need at least header + 1 data row
+    // 1. Filter out empty lines first to make parsing more predictable.
+    const lines = csvText.trim().split(/\r?\n/).filter(line => line.trim() !== '');
+
+    if (lines.length < 2) { // Need at least header + 1 data row
+      if (lines.length > 0) {
+        alert("קובץ ה-CSV חייב להכיל שורת כותרת ולפחות שורת נתונים אחת.");
+      }
+      return [];
+    }
 
     let headerLine = lines[0];
-    // Remove BOM (Byte Order Mark) if present, which can be added by some editors like Excel
+    // Remove BOM (Byte Order Mark) if present
     if (headerLine.charCodeAt(0) === 0xFEFF) {
         headerLine = headerLine.substring(1);
     }
 
     const delimiter = headerLine.includes('\t') ? '\t' : ',';
-
     const headers = headerLine.split(delimiter).map(h => h.trim().toLowerCase().replace(/"/g, ''));
     const requiredHeaders = ['name', 'equipment', 'description', 'safetynotes', 'category', 'level', 'rest'];
     
@@ -72,17 +78,18 @@ const parseExercisesCSV = (csvText: string): Exercise[] => {
         alert(`קובץ ה-CSV/TSV אינו תקין. העמודות הבאות חסרות:\n\n- ${missingHeaders.join('\n- ')}\n\nאנא ודא שהקובץ מכיל את כל העמודות הנדרשות.`);
         return [];
     }
+    
+    // 2. Explicitly slice the array to process only data rows.
+    const dataLines = lines.slice(1);
 
-    for (let i = 1; i < lines.length; i++) {
-        if (!lines[i].trim()) continue; // Skip empty lines
-        
-        const data = universalParseLine(lines[i], delimiter);
+    for (const line of dataLines) {
+        const data = universalParseLine(line, delimiter);
         const row: any = {};
         headers.forEach((header, index) => {
             row[header] = data[index] || '';
         });
 
-        // Basic validation
+        // Basic validation to prevent creating empty exercises
         if (!row.name || !row.category || !row.level) continue;
 
         // Type casting and validation
@@ -98,7 +105,7 @@ const parseExercisesCSV = (csvText: string): Exercise[] => {
             reps: row.reps || undefined,
             duration: row.duration && !isNaN(parseInt(row.duration, 10)) ? parseInt(row.duration, 10) : undefined,
             rest: row.rest,
-            safetyNotes: row.safetynotes, // csv headers are lowercased
+            safetyNotes: row.safetynotes,
             category: category as Exercise['category'],
             level: level as Exercise['level'],
         };
