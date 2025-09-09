@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import WelcomeModal from './components/WelcomeModal';
 import WorkoutPlanner from './components/WorkoutPlanner';
@@ -644,11 +643,11 @@ function App() {
 
       <header className="bg-slate-800/80 backdrop-blur-sm sticky top-0 z-40 shadow-md">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-20">
-                <div className="flex-shrink-0">
+            <div className="flex flex-col md:flex-row items-center justify-between py-4 md:py-0 md:h-20">
+                <div className="flex-shrink-0 mb-4 md:mb-0">
                     <h1 className="text-xl md:text-2xl font-bold text-white">תוכנית אימונים אישית</h1>
                 </div>
-                <div className="flex items-center space-x-2 md:space-x-4">
+                <div className="flex items-center justify-center flex-wrap gap-2">
                     <TabButton tabName="plan" label="תוכנית אימונים" />
                     <TabButton tabName="progress" label="מעקב התקדמות" />
                     <TabButton tabName="library" label="ספרייה ועריכה" />
