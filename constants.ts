@@ -1,8 +1,13 @@
-import type { Exercise, ContentSection, PlannedExercise, WorkoutTemplate, WeeklyPlan } from './types';
+
+import type { Exercise, PlannedExercise, WorkoutTemplate, WeeklyPlan, ContentSection } from './types';
 
 export const EXERCISE_CATEGORIES = ['כוח', 'ליבה', 'אירובי', 'קליסטניקס', 'כדורסל', 'חימום', 'גמישות'] as const;
 export const EXERCISE_LEVELS = ['מתחיל', 'בינוני', 'מתקדם'] as const;
 export const DAYS_OF_WEEK = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'] as const;
+
+export const WORKOUT_LEVELS = ['כל הרמות', 'מתחיל', 'בינוני', 'מתקדם'] as const;
+export const PLAN_LEVELS = ['מתחיל', 'בינוני', 'מתקדם'] as const;
+export const WORKOUT_TAGS = [...EXERCISE_CATEGORIES, 'מנוחה'] as const;
 
 
 export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
@@ -15,7 +20,6 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     sets: 3, reps: '10-15',
     rest: "60-90 שניות",
     safetyNotes: "להקפיד על תנועה מבוקרת, אין להוריד את המשקולות מהר מדי.",
-    imageUrl: "https://picsum.photos/seed/dumbbell-press/400/300",
     category: "כוח",
     level: "מתחיל",
   },
@@ -27,7 +31,6 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     sets: 3, reps: '10-15',
     rest: "60 שניות",
     safetyNotes: "להקפיד על גב ישר, להימנע משקיעה של הגב התחתון.",
-    imageUrl: "https://picsum.photos/seed/incline-pushup/400/300",
     category: "כוח",
     level: "מתחיל",
   },
@@ -39,7 +42,6 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     sets: 2, reps: '10-15',
     rest: "60-90 שניות",
     safetyNotes: "להקפיד על גב ישר ויציב, להימנע מסיבוב הגוף.",
-    imageUrl: "https://picsum.photos/seed/dumbbell-row/400/300",
     category: "כוח",
     level: "מתחיל",
   },
@@ -51,7 +53,6 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     sets: 3, reps: '10-15',
     rest: "60 שניות",
     safetyNotes: "יש לשמור על גב ישר ומבט לפנים. להקפיד שהברכיים לא יעברו את קו הבהונות.",
-    imageUrl: "https://picsum.photos/seed/squat/400/300",
     category: "כוח",
     level: "מתחיל",
   },
@@ -63,7 +64,6 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     sets: 2, reps: '8-12 لكل רגל',
     rest: "60 שניות",
     safetyNotes: "יש לשמור על פלג גוף עליון ישר ויציב.",
-    imageUrl: "https://picsum.photos/seed/lunge/400/300",
     category: "כוח",
     level: "מתחיל",
   },
@@ -76,7 +76,6 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     sets: 3, duration: 40, // 20-60 seconds, default to 40
     rest: "30 שניות",
     safetyNotes: "להקפיד על נשימה סדירה. יש להפסיק מיד אם מופיע כאב גב.",
-    imageUrl: "https://picsum.photos/seed/plank/400/300",
     category: "ליבה",
     level: "מתחיל",
   },
@@ -89,7 +88,6 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     sets: 3, reps: '10-12',
     rest: "60 שניות",
     safetyNotes: "תרגיל זה הוא בסיס מצוין למתח. הוא מפתח כוח בגב ובזרועות ללא עומס גדול מדי.",
-    imageUrl: "https://picsum.photos/seed/ring-row/400/300",
     category: "קליסטניקס",
     level: "מתחיל",
   },
@@ -102,7 +100,6 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     duration: 300, // 5 minutes
     rest: "",
     safetyNotes: "כלי מצוין לחימום אירובי ולשיפור קואורדינציה.",
-    imageUrl: "https://picsum.photos/seed/jumprope/400/300",
     category: "אירובי",
     level: "מתחיל",
   },
@@ -115,7 +112,6 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     duration: 1500, // 25 minutes
     rest: "משתנה",
     safetyNotes: "יש להתמקד בשליטה ודיוק, במיוחד בכדרור ביד החלשה.",
-    imageUrl: "https://picsum.photos/seed/basketball/400/300",
     category: "כדורסל",
     level: "מתחיל",
   },
@@ -127,7 +123,6 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     reps: "4 רבעים של 10 דק'",
     rest: "2 דקות בין רבעים",
     safetyNotes: "חשוב לבצע חימום טוב לפני המשחק ולשמור על שתיית מים.",
-    imageUrl: "https://picsum.photos/seed/basketball-game/400/300",
     category: "כדורסל",
     level: "בינוני",
   },
@@ -140,7 +135,6 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     duration: 60, // 30 sec each way
     rest: "",
     safetyNotes: "בצעו את התנועה לאט ובטווח תנועה מלא.",
-    imageUrl: "https://picsum.photos/seed/arm-circles/400/300",
     category: "חימום",
     level: "מתחיל",
   },
@@ -152,7 +146,6 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     sets: 2, duration: 30,
     rest: "15 שניות",
     safetyNotes: "שמרו על גב ישר והפעילו את שרירי הבטן.",
-    imageUrl: "https://picsum.photos/seed/high-knees/400/300",
     category: "חימום",
     level: "מתחיל",
   },
@@ -165,7 +158,6 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     duration: 60, // 30 sec each leg
     rest: "",
     safetyNotes: "הימנעו מנעילת הברך ושמרו על גב יחסית ישר.",
-    imageUrl: "https://picsum.photos/seed/hamstring-stretch/400/300",
     category: "גמישות",
     level: "מתחיל",
   },
@@ -177,7 +169,6 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     duration: 90,
     rest: "",
     safetyNotes: "נשמו עמוק והרגישו את המתיחה בגב התחתון.",
-    imageUrl: "https://picsum.photos/seed/childs-pose/400/300",
     category: "גמישות",
     level: "מתחיל",
   },
@@ -202,6 +193,8 @@ export const INITIAL_WORKOUT_TEMPLATES: WorkoutTemplate[] = [
         title: "אימון קצר",
         type: "Full Body",
         duration: "(כ-25 דק')",
+        level: "מתחיל",
+        tags: ["כוח", "ליבה", "אירובי", "חימום"],
         exercises: [
             ...createPlannedExercises(['warmup-1', 'cardio-1']),
             ...createPlannedExercises(['force-4', 'force-2', 'core-1']),
@@ -212,6 +205,8 @@ export const INITIAL_WORKOUT_TEMPLATES: WorkoutTemplate[] = [
         title: "אימון בינוני",
         type: "Full Body",
         duration: "(כ-45 דק')",
+        level: "מתחיל",
+        tags: ["כוח", "ליבה", "אירובי", "חימום"],
         exercises: [
             ...createPlannedExercises(['warmup-2', 'cardio-1']),
             ...createPlannedExercises(['force-1', 'force-3', 'force-5', 'core-1']),
@@ -222,6 +217,8 @@ export const INITIAL_WORKOUT_TEMPLATES: WorkoutTemplate[] = [
         title: "אימון ארוך",
         type: "Full Body + Skills",
         duration: "(כ-60 דק')",
+        level: "בינוני",
+        tags: ["כדורסל", "כוח", "קליסטניקס", "אירובי"],
         exercises: [
             ...createPlannedExercises(['cardio-1']),
             ...createPlannedExercises(['basketball-1']),
@@ -233,6 +230,8 @@ export const INITIAL_WORKOUT_TEMPLATES: WorkoutTemplate[] = [
         title: "מנוחה פעילה",
         type: "שחרור ומתיחות",
         duration: "",
+        level: "כל הרמות",
+        tags: ["גמישות"],
         exercises: createPlannedExercises(['flex-1', 'flex-2']),
     },
     {
@@ -240,6 +239,8 @@ export const INITIAL_WORKOUT_TEMPLATES: WorkoutTemplate[] = [
         title: "משחק כדורסל",
         type: "אימון אופציונלי",
         duration: "",
+        level: "בינוני",
+        tags: ["כדורסל"],
         exercises: createPlannedExercises(['basketball-2']),
     },
      {
@@ -247,6 +248,8 @@ export const INITIAL_WORKOUT_TEMPLATES: WorkoutTemplate[] = [
         title: "מנוחה מלאה",
         type: "התאוששות",
         duration: "",
+        level: "כל הרמות",
+        tags: ["מנוחה"],
         exercises: [],
     },
 ];
@@ -255,6 +258,7 @@ export const INITIAL_WEEKLY_PLANS: WeeklyPlan[] = [
     {
         id: 'week-1',
         name: 'שבוע 1 - רמה: מתחיל',
+        level: 'מתחיל',
         schedule: {
             'ראשון': 'workout-short',
             'שני': 'workout-full-rest',
@@ -268,6 +272,7 @@ export const INITIAL_WEEKLY_PLANS: WeeklyPlan[] = [
     {
         id: 'week-2',
         name: 'שבוע 2 - רמה: מתחיל',
+        level: 'מתחיל',
         schedule: {
             'ראשון': 'workout-short',
             'שני': 'workout-active-rest',
@@ -281,6 +286,7 @@ export const INITIAL_WEEKLY_PLANS: WeeklyPlan[] = [
     {
         id: 'week-3',
         name: 'שבוע 3 - רמה: מתחיל',
+        level: 'מתחיל',
         schedule: {
             'ראשון': 'workout-medium',
             'שני': 'workout-full-rest',
@@ -294,6 +300,7 @@ export const INITIAL_WEEKLY_PLANS: WeeklyPlan[] = [
      {
         id: 'week-4',
         name: 'שבוע 4 - רמה: מתחיל',
+        level: 'מתחיל',
         schedule: {
             'ראשון': 'workout-medium',
             'שני': 'workout-active-rest',
@@ -314,78 +321,34 @@ export const SAFETY_DISCLAIMER: ContentSection = {
   ]
 };
 
-export const PRINCIPLES: ContentSection[] = [
-  {
-    title: "1.1. עקרון ההדרגתיות: מניעת פציעות כחזון יסוד",
-    content: [
-      "תפיסת האימון המוצגת כאן מבוססת על עקרונות פיזיולוגיים מוכחים, בראשם עקרון העומס המתגבר (Progressive Overload). על מנת לייצר התקדמות, יש לספק לשריר גירוי גדול יותר ממה שהוא רגיל אליו. עבור מתאמן מתחיל, במיוחד כזה המדווח על כאבים, הדגש הראשוני אינו על משקלים חיצוניים כבדים.",
-      "הגישה הבטוחה לבניית יסודות מתחילה בשיפור מיומנויות תנועה ובבניית נפח אימון הדרגתי. במקום להעלות משקלים, ההתקדמות תושג באמצעות הגברת מספר החזרות והסטים. גישה זו מאפשרת לגוף להסתגל, לשכלל טכניקה ולבנות יציבות, שהיא המפתח למניעת פציעות. העבודה ההדרגתית תגרום לאימונים להרגיש קלים בהתחלה, אך הגירוי היציב והמתמשך יוביל לחיזוק מצטבר."
-    ]
-  },
-  {
-    title: "1.2. חשיבות המנוחה וההתאוששות",
-    content: [
-      "מנוחה אינה שלב פסיבי, אלא חלק אינטגרלי ואקטיבי מתהליך הגדילה. תהליך הפיצוי העילאי (Supercompensation) מתרחש בזמן ההתאוששות: לאחר שהשרירים נפגעו ממיקרו-קרעים באימון, הם נבנים מחדש וחזקים יותר במנוחה.",
-      "מתאמן מתחיל נדרש למנוחה של לפחות 48 שעות בין אימוני כוח על אותן קבוצות שרירים, כדי לאפשר לגוף להתאושש באופן מלא. זמני המנוחה בין הסטים נעים בין 45 ל-90 שניות. הכרה במנוחה כחלק מהתוכנית מונעת תסכול ומאפשרת צמיחה אמיתית."
-    ]
-  },
-  {
-    title: "1.3. מוטיבציה ככלי לאימון לטווח ארוך",
-    content: [
-      "המוטיבציה להתאמן לאורך זמן נובעת ממקורות פנימיים, כגון הנאה והשראה. התוכנית נועדה להיות \"לא משעממת\" על ידי שילוב כדורסל, דלגית וקליסטניקס, כדי להפוך את האימון למשחק וחוויה.",
-      "התוכנית מקשרת בין תרגילים בסיסיים למטרה גדולה יותר. לדוגמה, חיזוק שרירי הליבה מוסבר ככלי לשיפור ביצועי כדורסל (יציבות לכדרור וקליעה), מה שמעניק משמעות מיידית לתרגיל הפלאנק ומחבר אותו לתשוקה של המתאמן. גישה זו מחזקת מוטיבציה פנימית ומבטיחה התמדה."
-    ]
-  }
-];
+// FIX: Add missing content sections for the InfoPage component.
+export const PRINCIPLES: ContentSection = {
+  title: "עקרונות אימון חשובים",
+  content: [
+    "**התמדה ועקביות:** המפתח להצלחה הוא לא אימון חד פעמי קשה, אלא שגרה קבועה. עדיף להתאמן 3 פעמים בשבוע באופן קבוע מאשר 5 פעמים בשבוע אחד ואז להפסיק.",
+    "**הקשבה לגוף:** למד להבדיל בין כאב 'טוב' של שריר שעובד לבין כאב 'רע' שמסמן פציעה. אם משהו כואב בצורה חדה או לא רגילה, עצור ובדוק.",
+    "**עומס יתר מתקדם (Progressive Overload):** כדי להמשיך ולהתקדם, הגוף צריך אתגר. יש להעלות את הקושי בהדרגה - בין אם על ידי הוספת משקל, יותר חזרות, או קיצור זמני המנוחה.",
+    "**חשיבות המנוחה:** השרירים גדלים ומתחזקים בזמן המנוחה, לא בזמן האימון. הקפד על 7-8 שעות שינה בלילה ועל ימי מנוחה כפי שמופיע בתוכנית.",
+    "**טכניקה נכונה:** ביצוע תרגיל עם טכניקה לא נכונה לא רק שלא יביא לתוצאות, אלא גם עלול לגרום לפציעות. צפה בסרטונים, התייעץ, ואל תתבייש להתחיל עם משקל קל כדי ללמוד את התנועה."
+  ]
+};
 
-export const PAIN_MANAGEMENT: ContentSection[] = [
-    {
-      title: "2.1. התמודדות עם כאבי מפרק כף היד",
-      content: [
-        "כאבים במפרק כף היד בשכיבות סמיכה נובעים לרוב מכיפוף יתר. ניתן להשתמש בטכניקות המפחיתות עומס ומחזקות את האזור בהדרגה.",
-        "חיזוק מקדים: בצעו לפני אימון 'תנוחת התפילה' (לחיצת כפות ידיים זו בזו והנמכה איטית), מעיכת כדור טניס, ודחיפת שולחן איזומטרית (מיקום כפות ידיים מתחת לשולחן ודחיפה עדינה כלפי מעלה).",
-        "וריאציות שכיבות סמיכה: בצעו שכיבות סמיכה בשיפוע חיובי (ידיים על משטח מוגבה) להפחתת עומס, או שכיבות סמיכה על האגרופים כדי לשמור על מפרק ישר."
-      ]
-    },
-    {
-      title: "2.2. חיזוק עדין לגב ולצוואר",
-      content: [
-        "כאבים בגב ובצוואר קשורים לעיתים קרובות לחולשת שרירי ליבה. חיזוק הדרגתי של אזורים אלה קריטי למניעה והקלה.",
-        "תרגילים מומלצים: שכיבה על הגב עם משיכת ברכיים לחזה להקלה על גב תחתון, ותרגיל 'פלאנק' לחיזוק ליבה כללי. בפלאנק, חשוב לשמור על גב ישר ולהפסיק אם מופיע כאב."
-      ]
-    }
-];
+export const PAIN_MANAGEMENT: ContentSection = {
+  title: "ניהול כאב ומניעת פציעות",
+  content: [
+    "**חימום ומתיחות דינמיות:** לפני כל אימון, הקדש 5-10 דקות לחימום שיעלה את דופק הלב ויכין את השרירים והמפרקים למאמץ. בצע תנועות דינמיות כמו סיבובי ידיים, הרמות ברכיים וכו'.",
+    "**שחרור (Cool Down):** בסוף האימון, הקדש כמה דקות להורדת דופק הדרגתית ולמתיחות סטטיות עדינות לשרירים שעבדו. זה עוזר לשפר גמישות ולהפחית כאבי שרירים מאוחרים (DOMS).",
+    "**כאב חד לעומת כאב שרירים:** כאב חד, דוקר, או כאב שמחמיר עם תנועה מסוימת הוא סימן אזהרה. יש לעצור את התרגיל. כאב שרירים עמום שמופיע יום-יומיים אחרי אימון הוא בדרך כלל נורמלי.",
+    "**אל תתעלם מכאב כרוני:** אם כאב מסוים נמשך יותר משבוע-שבועיים, גם אם הוא בעצימות נמוכה, מומלץ מאוד לפנות לייעוץ מקצועי (פיזיותרפיסט או רופא ספורט).",
+  ]
+};
 
-export const FUTURE_PLAN: ContentSection[] = [
-    {
-      title: "חודש 2: העלאת דרגה - הוספת וריאציות",
-      content: [
-        "לאחר ביסוס טכניקה והתחזקות, נעלה את הקושי על ידי שינוי וריאציות. גישה זו מאפשרת התקדמות מבלי להעמיס יתר על המידה.",
-        "שכיבות סמיכה: נתקדם משיפוע חיובי לשכיבות סמיכה רגילות (על הבהונות או אגרופים), בהתאם לתחושה במפרק.",
-        "קליסטניקס: אימוני טבעות יתמקדו בחתירה הפוכה, תרגיל יסוד לבניית כוח בגב ובזרועות לקראת מתח עתידי."
-      ]
-    },
-    {
-      title: "חודש 3: התמחות ופיצול - מעבר למודל A/B",
-      content: [
-        "לאחר כשישה שבועות, הגוף יהיה מוכן לעומסים גבוהים יותר. נפצל את התוכנית לשני סוגי אימונים (A ו-B) לעבודה ממוקדת יותר.",
-        "תוכנית A: תתמקד בתרגילי 'דחיפה' (חזה, כתפיים, תלת-ראשי) ורגליים.",
-        "תוכנית B: תתמקד בתרגילי 'משיכה' (גב, דו-ראשי) וליבה.",
-      ]
-    },
-    {
-        title: "הערה חשובה: אימון פליאומטרי",
-        content: [
-            "אימון פליאומטרי (קפיצות וניתורים) קריטי לשיפור כוח מתפרץ בכדורסל, אך הוא מייצר עומס גבוה על המפרקים ואינו מומלץ למתחילים. יש להתייחס אליו כמטרה עתידית רק לאחר בניית בסיס כוח מוצק."
-        ]
-    }
-];
-
-export const CONCLUSION: ContentSection = {
-    title: "סיכום ומסקנות",
-    content: [
-        "התוכנית מהווה מפת דרכים הוליסטית, המשלבת עקרונות פיזיולוגיים עם גישה פסיכולוגית ממוקדת. היא נבנתה להתקדמות בטוחה, יעילה ולא משעממת. המפתח להצלחה הוא עקביות ושיפור מתמיד לטווח ארוך.",
-        "ניהול יומן אימונים: זהו כלי הכרחי להתמדה. מעקב אחר חזרות, סטים וזמנים מאפשר לראות באופן מוחשי את השיפור ומחזק את המוטיבציה.",
-        "מבט קדימה: התוכנית היא רק ההתחלה. היא נועדה לבנות בסיס איתן שישפר לא רק כוח, אלא גם יציבה, תחושת מסוגלות והפחתת כאבים. המטרה היא מסע שלם של התפתחות, שבו כל צעד קדימה הוא ניצחון."
-    ]
+export const RECOVERY_NUTRITION: ContentSection = {
+  title: "התאוששות ותזונה",
+  content: [
+    "**חלבון לבניית שריר:** לאחר אימון כוח, השרירים צריכים חלבון כדי לתקן את עצמם ולהיבנות מחדש. שאף לצרוך מנת חלבון (כ-20-30 גרם) בשעה-שעתיים שלאחר האימון. מקורות טובים: עוף, דגים, ביצים, קטניות, טופו, אבקת חלבון.",
+    "**פחמימות למילוי מאגרים:** פחמימות הן הדלק של הגוף. אכילת פחמימות לאחר אימון מסייעת למלא מחדש את מאגרי האנרגיה (גליקוגן) בשרירים. שלב פחמימות מורכבות כמו בטטה, אורז מלא או קינואה בארוחה שאחרי האימון.",
+    "**שתיית מים:** התייבשות, אפילו קלה, פוגעת בביצועים ובהתאוששות. שתה מים לאורך כל היום, ובמיוחד לפני, במהלך ואחרי האימון.",
+    "**תזונה כללית:** תוכנית אימונים טובה חייבת להיות מגובה בתזונה מאוזנת. הקפד על צריכת ירקות, פירות, שומנים בריאים, וחלבונים איכותיים כדי לתת לגוף את כל מה שהוא צריך לתפקוד והתאוששות מיטביים."
+  ]
 };

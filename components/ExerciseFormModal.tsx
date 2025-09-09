@@ -18,7 +18,6 @@ const emptyExercise: Omit<Exercise, 'id'> = {
     duration: undefined,
     rest: '',
     safetyNotes: '',
-    imageUrl: '',
     category: 'כוח',
     level: 'מתחיל',
 };
@@ -105,10 +104,6 @@ const ExerciseFormModal: React.FC<ExerciseFormModalProps> = ({ isOpen, onClose, 
                     <div>
                         <label htmlFor="safetyNotes" className="block mb-2 text-sm font-medium text-gray-300">דגשי בטיחות</label>
                         <textarea name="safetyNotes" value={exercise.safetyNotes} onChange={handleChange} rows={2} required className="bg-slate-700 border border-slate-600 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block w-full p-2.5"></textarea>
-                    </div>
-                    <div>
-                        <label htmlFor="imageUrl" className="block mb-2 text-sm font-medium text-gray-300">כתובת URL של תמונה</label>
-                        <input type="text" name="imageUrl" value={exercise.imageUrl} onChange={handleChange} required className="bg-slate-700 border border-slate-600 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block w-full p-2.5" />
                     </div>
 
                     <div className="flex justify-end space-x-4 space-x-reverse pt-4">

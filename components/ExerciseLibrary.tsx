@@ -1,46 +1,74 @@
-import React, { useState } from 'react';
+
+import React, { useState, useRef } from 'react';
 import { EXERCISE_CATEGORIES, EXERCISE_LEVELS } from '../constants';
 import ExerciseCard from './ExerciseCard';
 import WorkoutTemplateEditor from './WorkoutTemplateEditor';
-import type { Exercise, WorkoutTemplate, ID } from '../types';
-import { PlusIcon } from './icons';
+import WeeklyPlanEditor from './WeeklyPlanEditor';
+import type { Exercise, WorkoutTemplate, ID, WeeklyPlan } from '../types';
+import { PlusIcon, UploadCloudIcon, DownloadIcon } from './icons';
 
 type Category = typeof EXERCISE_CATEGORIES[number] | 'הכל';
 type Level = typeof EXERCISE_LEVELS[number] | 'הכל';
-type LibraryTab = 'exercises' | 'templates';
+type LibraryTab = 'exercises' | 'templates' | 'plans';
 
 interface ExerciseLibraryProps {
     exerciseLibrary: Exercise[];
     workoutTemplates: WorkoutTemplate[];
+    weeklyPlans: WeeklyPlan[];
     onAddExerciseToPlan: (exercise: Exercise) => void;
     // Exercise handlers
     onAddNewExercise: () => void;
     onEditExercise: (exercise: Exercise) => void;
     onDeleteExercise: (exerciseId: string) => void;
     onDuplicateExercise: (exercise: Exercise) => void;
+    onImportExercises: (file: File) => void;
+    onExportExercises: () => void;
     // Template handlers
     onAddExerciseToTemplate: (templateId: ID, exercise: Exercise) => void;
     onRemoveExerciseFromTemplate: (templateId: ID, planInstanceId: ID) => void;
-    onCreateTemplate: (title: string) => void;
-    onUpdateTemplateTitle: (templateId: ID, newTitle: string) => void;
+    onCreateTemplate: () => void;
+    onEditTemplate: (template: WorkoutTemplate) => void;
     onDeleteTemplate: (templateId: ID) => void;
+    // Plan handlers
+    onCreateWeeklyPlan: () => void;
+    onEditWeeklyPlan: (plan: WeeklyPlan) => void;
+    onDeleteWeeklyPlan: (planId: ID) => void;
+    onUpdateWeeklyPlanSchedule: (planId: ID, day: string, templateId: ID | null) => void;
 }
 
 const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
     const { 
         exerciseLibrary, 
         workoutTemplates,
+        weeklyPlans,
         onAddExerciseToPlan,
         onAddNewExercise,
         onEditExercise,
         onDeleteExercise,
         onDuplicateExercise,
+        onImportExercises,
+        onExportExercises,
+        onCreateWeeklyPlan,
+        onEditWeeklyPlan,
+        onDeleteWeeklyPlan,
+        onUpdateWeeklyPlanSchedule,
         ...templateHandlers
     } = props;
     
     const [activeTab, setActiveTab] = useState<LibraryTab>('exercises');
     const [activeCategory, setActiveCategory] = useState<Category>('הכל');
     const [activeLevel, setActiveLevel] = useState<Level>('הכל');
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            onImportExercises(file);
+            // Reset the input value to allow re-uploading the same file
+            if(event.target) event.target.value = '';
+        }
+    };
+
 
     const filteredExercises = exerciseLibrary.filter(ex => {
         const categoryMatch = activeCategory === 'הכל' || ex.category === activeCategory;
@@ -68,6 +96,7 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
                     <nav className="-mb-px flex space-x-8 space-x-reverse" aria-label="Tabs">
                         <TabButton tabName="exercises" label="תרגילים" />
                         <TabButton tabName="templates" label="תבניות אימון" />
+                        <TabButton tabName="plans" label="תוכניות שבועיות" />
                     </nav>
                 </div>
             </div>
@@ -79,13 +108,36 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
                             <h2 className="text-3xl md:text-4xl font-extrabold text-white">ספריית תרגילים</h2>
                             <p className="text-gray-400">נהל את אוסף התרגילים שלך והוסף אותם לתבניות אימון.</p>
                         </div>
-                        <button
-                            onClick={onAddNewExercise}
-                            className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
-                        >
-                            <PlusIcon className="w-5 h-5" />
-                            <span>תרגיל חדש</span>
-                        </button>
+                         <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
+                            >
+                                <UploadCloudIcon className="w-5 h-5" />
+                                <span>ייבוא</span>
+                            </button>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileSelect}
+                                accept=".csv,.tsv,.txt"
+                                className="hidden"
+                            />
+                             <button
+                                onClick={onExportExercises}
+                                className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
+                            >
+                                <DownloadIcon className="w-5 h-5" />
+                                <span>ייצוא</span>
+                            </button>
+                            <button
+                                onClick={onAddNewExercise}
+                                className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
+                            >
+                                <PlusIcon className="w-5 h-5" />
+                                <span>תרגיל חדש</span>
+                            </button>
+                        </div>
                     </div>
 
                     <div className="my-8 space-y-4">
@@ -122,6 +174,17 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
                     workoutTemplates={workoutTemplates}
                     exerciseLibrary={exerciseLibrary}
                     {...templateHandlers}
+                />
+            )}
+
+            {activeTab === 'plans' && (
+                <WeeklyPlanEditor 
+                    weeklyPlans={weeklyPlans}
+                    workoutTemplates={workoutTemplates}
+                    onCreatePlan={onCreateWeeklyPlan}
+                    onEditPlan={onEditWeeklyPlan}
+                    onDeletePlan={onDeleteWeeklyPlan}
+                    onUpdateSchedule={onUpdateWeeklyPlanSchedule}
                 />
             )}
         </div>

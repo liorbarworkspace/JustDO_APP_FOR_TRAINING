@@ -1,3 +1,4 @@
+
 export type ID = string;
 
 export interface Exercise {
@@ -10,7 +11,6 @@ export interface Exercise {
   duration?: number; // in seconds
   rest: string;
   safetyNotes: string;
-  imageUrl: string;
   category: 'כוח' | 'ליבה' | 'אירובי' | 'קליסטניקס' | 'כדורסל' | 'חימום' | 'גמישות';
   level: 'מתחיל' | 'בינוני' | 'מתקדם';
 }
@@ -25,11 +25,14 @@ export interface WorkoutTemplate {
     type: string;
     duration: string;
     exercises: PlannedExercise[];
+    level: 'כל הרמות' | 'מתחיל' | 'בינוני' | 'מתקדם';
+    tags: string[];
 }
 
 export interface WeeklyPlan {
   id: ID;
   name: string;
+  level: 'מתחיל' | 'בינוני' | 'מתקדם';
   schedule: {
     // Key is day name in Hebrew, value is WorkoutTemplate ID
     [day: string]: ID | null; 
@@ -41,11 +44,20 @@ export interface ContentSection {
   content: string[];
 }
 
+export interface Feedback {
+    feeling: 'excellent' | 'good' | 'ok' | 'tired';
+    painLevel: number; // 0-5
+    painLocation: string;
+    difficulty: 'easy' | 'just_right' | 'hard';
+    notes: string;
+}
+
 export type CompletionLogEntry = {
     weeklyPlanName: string;
     dayOfWeek: string;
     workoutTemplate: WorkoutTemplate; // Snapshot of the workout
     completedExercises: { [planInstanceId: string]: PlannedExercise };
+    feedback?: Feedback;
 };
 
 export type CompletionLog = {

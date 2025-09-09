@@ -1,31 +1,111 @@
+
+
 import React, { useState, useEffect } from 'react';
 import WelcomeModal from './components/WelcomeModal';
 import WorkoutPlanner from './components/WorkoutPlanner';
 import ExerciseLibrary from './components/ExerciseLibrary';
 import ProgressTracker from './components/ProgressTracker';
+import WorkoutSessionPage from './components/WorkoutSessionPage';
 import AddExerciseModal from './components/AddExerciseModal';
 import EditPlannedExerciseModal from './components/EditPlannedExerciseModal';
 import ExerciseFormModal from './components/ExerciseFormModal';
 import ConfirmationModal from './components/ConfirmationModal';
 import TemplateFormModal from './components/TemplateFormModal';
-import { PRINCIPLES, PAIN_MANAGEMENT, FUTURE_PLAN, CONCLUSION, INITIAL_WORKOUT_TEMPLATES, INITIAL_EXERCISE_LIBRARY, INITIAL_WEEKLY_PLANS } from './constants';
-import type { ContentSection, WorkoutTemplate, CompletionLog, Exercise, PlannedExercise, ID, WeeklyPlan, CompletionLogEntry } from './types';
+import WeeklyPlanFormModal from './components/WeeklyPlanFormModal';
+import FeedbackModal from './components/FeedbackModal'; // Import the new modal
+import { INITIAL_WORKOUT_TEMPLATES, INITIAL_EXERCISE_LIBRARY, INITIAL_WEEKLY_PLANS, WORKOUT_LEVELS, PLAN_LEVELS, EXERCISE_CATEGORIES, EXERCISE_LEVELS } from './constants';
+import type { WorkoutTemplate, CompletionLog, Exercise, PlannedExercise, ID, WeeklyPlan, CompletionLogEntry, Feedback } from './types';
 
-type Tab = 'plan' | 'progress' | 'library' | 'info';
+type Tab = 'plan' | 'progress' | 'library' | 'workout';
 
-const InfoSection: React.FC<{ title: string; sections: ContentSection[] }> = ({ title, sections }) => (
-    <div className="w-full max-w-4xl mx-auto p-4 md:p-6 text-right space-y-8">
-        <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-4">{title}</h2>
-        {sections.map(section => (
-            <div key={section.title} className="bg-slate-800/50 rounded-lg p-6 border border-slate-700">
-                <h3 className="text-xl font-bold text-cyan-400 mb-3">{section.title}</h3>
-                <div className="space-y-3 text-gray-300 leading-relaxed">
-                    {section.content.map((p, i) => <p key={i}>{p}</p>)}
-                </div>
-            </div>
-        ))}
-    </div>
-);
+
+// A robust CSV/TSV parser that handles quoted fields for commas.
+const universalParseLine = (line: string, delimiter: string): string[] => {
+    if (delimiter === '\t') {
+        return line.split('\t').map(s => s.trim().replace(/^"|"$/g, ''));
+    }
+    
+    // Existing comma-parser for CSV
+    const result: string[] = [];
+    let current = '';
+    let inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        const nextChar = line[i+1];
+        
+        if (char === '"' && inQuote && nextChar === '"') { // Handle escaped quote ""
+            current += '"';
+            i++; // Skip next quote
+        } else if (char === '"') {
+            inQuote = !inQuote;
+        } else if (char === delimiter && !inQuote) {
+            result.push(current.trim());
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    result.push(current.trim());
+    return result.map(s => s.replace(/^"|"$/g, ''));
+};
+
+
+const parseExercisesCSV = (csvText: string): Exercise[] => {
+    const newExercises: Exercise[] = [];
+    const lines = csvText.trim().split(/\r?\n/);
+    if (lines.length < 2) return []; // Need at least header + 1 data row
+
+    let headerLine = lines[0];
+    // Remove BOM (Byte Order Mark) if present, which can be added by some editors like Excel
+    if (headerLine.charCodeAt(0) === 0xFEFF) {
+        headerLine = headerLine.substring(1);
+    }
+
+    const delimiter = headerLine.includes('\t') ? '\t' : ',';
+
+    const headers = headerLine.split(delimiter).map(h => h.trim().toLowerCase().replace(/"/g, ''));
+    const requiredHeaders = ['name', 'equipment', 'description', 'safetynotes', 'category', 'level', 'rest'];
+    
+    const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+
+    if (missingHeaders.length > 0) {
+        alert(`קובץ ה-CSV/TSV אינו תקין. העמודות הבאות חסרות:\n\n- ${missingHeaders.join('\n- ')}\n\nאנא ודא שהקובץ מכיל את כל העמודות הנדרשות.`);
+        return [];
+    }
+
+    for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue; // Skip empty lines
+        
+        const data = universalParseLine(lines[i], delimiter);
+        const row: any = {};
+        headers.forEach((header, index) => {
+            row[header] = data[index] || '';
+        });
+
+        // Basic validation
+        if (!row.name || !row.category || !row.level) continue;
+
+        // Type casting and validation
+        const category = EXERCISE_CATEGORIES.includes(row.category as any) ? row.category : EXERCISE_CATEGORIES[0];
+        const level = EXERCISE_LEVELS.includes(row.level as any) ? row.level : EXERCISE_LEVELS[0];
+
+        const newExercise: Exercise = {
+            id: crypto.randomUUID(),
+            name: row.name,
+            equipment: row.equipment,
+            description: row.description,
+            sets: row.sets && !isNaN(parseInt(row.sets, 10)) ? parseInt(row.sets, 10) : undefined,
+            reps: row.reps || undefined,
+            duration: row.duration && !isNaN(parseInt(row.duration, 10)) ? parseInt(row.duration, 10) : undefined,
+            rest: row.rest,
+            safetyNotes: row.safetynotes, // csv headers are lowercased
+            category: category as Exercise['category'],
+            level: level as Exercise['level'],
+        };
+        newExercises.push(newExercise);
+    }
+    return newExercises;
+};
 
 
 function App() {
@@ -41,13 +121,17 @@ function App() {
   });
   
   const [weeklyPlans, setWeeklyPlans] = useState<WeeklyPlan[]>(() => {
-     try { const saved = localStorage.getItem('weeklyPlans'); return saved ? JSON.parse(saved) : INITIAL_WEEKLY_PLANS; } catch { return INITIAL_WEEKLY_PLANS; }
+     try { const saved = localStorage.getItem('weeklyPlans'); const plans = saved ? JSON.parse(saved) : INITIAL_WEEKLY_PLANS; return Array.isArray(plans) ? plans : INITIAL_WEEKLY_PLANS } catch { return INITIAL_WEEKLY_PLANS; }
   });
 
-  const [activeWeeklyPlanId, setActiveWeeklyPlanId] = useState<ID>(() => weeklyPlans[0]?.id || '');
+  const [activeWeeklyPlanId, setActiveWeeklyPlanId] = useState<ID>(() => {
+    const savedPlans = (() => { try { const saved = localStorage.getItem('weeklyPlans'); const plans = saved ? JSON.parse(saved) : INITIAL_WEEKLY_PLANS; return Array.isArray(plans) ? plans : INITIAL_WEEKLY_PLANS } catch { return INITIAL_WEEKLY_PLANS; } })();
+    return savedPlans[0]?.id || '';
+  });
+
 
   const [completionLog, setCompletionLog] = useState<CompletionLog>(() => {
-    try { const saved = localStorage.getItem('workoutCompletionLog'); return saved ? JSON.parse(saved) : {}; } catch { return {}; }
+    try { const saved = localStorage.getItem('workoutCompletionLog'); const log = saved ? JSON.parse(saved) : {}; return typeof log === 'object' && log !== null ? log : {}; } catch { return {}; }
   });
 
   // Modals state
@@ -62,10 +146,16 @@ function App() {
   const [exerciseToEditInLibrary, setExerciseToEditInLibrary] = useState<Exercise | null>(null);
   
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [idToDelete, setIdToDelete] = useState<{type: 'exercise' | 'template', id: ID} | null>(null);
+  const [idToDelete, setIdToDelete] = useState<{type: 'exercise' | 'template' | 'plan', id: ID} | null>(null);
   
   const [isTemplateFormModalOpen, setIsTemplateFormModalOpen] = useState(false);
   const [templateToEdit, setTemplateToEdit] = useState<WorkoutTemplate | null>(null);
+  
+  const [isWeeklyPlanFormModalOpen, setIsWeeklyPlanFormModalOpen] = useState(false);
+  const [planToEdit, setPlanToEdit] = useState<WeeklyPlan | null>(null);
+
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [feedbackLogDate, setFeedbackLogDate] = useState<string | null>(null);
 
 
   useEffect(() => { localStorage.setItem('exerciseLibrary', JSON.stringify(exerciseLibrary)); }, [exerciseLibrary]);
@@ -84,6 +174,81 @@ function App() {
         delete newLog[date];
         return newLog;
     });
+  };
+
+  // --- Feedback Handlers ---
+  const handleOpenFeedbackModal = (date: string) => {
+    setFeedbackLogDate(date);
+    setIsFeedbackModalOpen(true);
+  };
+  
+  const handleSaveFeedback = (feedback: Feedback) => {
+    if (feedbackLogDate && completionLog[feedbackLogDate]) {
+        setCompletionLog(prev => ({
+            ...prev,
+            [feedbackLogDate]: {
+                ...prev[feedbackLogDate],
+                feedback: feedback,
+            }
+        }));
+    }
+    setIsFeedbackModalOpen(false);
+    setFeedbackLogDate(null);
+  };
+  
+  const handleExportHistory = () => {
+        const headers = ['date', 'dayOfWeek', 'weeklyPlanName', 'workoutTitle', 'completedExercisesDetails', 'feeling', 'painLevel', 'painLocation', 'difficulty', 'notes'];
+        
+        const feelingMap = { excellent: 'מצוינת', good: 'טובה', ok: 'בסדר', tired: 'עייפות' };
+        const difficultyMap = { easy: 'קל מדי', 'just_right': 'בול', hard: 'קשה מדי' };
+        
+        const escapeCSV = (field: any): string => {
+            if (field === null || field === undefined) return '';
+            const str = String(field);
+            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+        };
+
+        const csvRows = [headers.join(',')];
+
+        Object.entries(completionLog).sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime()).forEach(([date, entry]) => {
+            const exercisesDetails = Object.values(entry.completedExercises).map(ex => {
+                 const setsRepsString = [
+                    ex.sets ? `${ex.sets} סטים` : '',
+                    ex.reps ? `x ${ex.reps}` : '',
+                    ex.duration ? `${ex.duration} שניות` : '',
+                ].filter(Boolean).join(' ');
+                return `${ex.name} (${setsRepsString})`;
+            }).join('\n');
+
+            const rowData = {
+                date: date,
+                dayOfWeek: entry.dayOfWeek,
+                weeklyPlanName: entry.weeklyPlanName,
+                workoutTitle: entry.workoutTemplate.title,
+                completedExercisesDetails: exercisesDetails,
+                feeling: entry.feedback?.feeling ? feelingMap[entry.feedback.feeling] : '',
+                painLevel: entry.feedback?.painLevel ?? '',
+                painLocation: entry.feedback?.painLocation ?? '',
+                difficulty: entry.feedback?.difficulty ? difficultyMap[entry.feedback.difficulty] : '',
+                notes: entry.feedback?.notes ?? ''
+            };
+            const row = headers.map(header => escapeCSV(rowData[header as keyof typeof rowData]));
+            csvRows.push(row.join(','));
+        });
+
+        const csvString = csvRows.join('\r\n');
+        const blob = new Blob(['\uFEFF' + csvString], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'workout_history.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
   };
 
   // --- Weekly Plan Schedule Handler ---
@@ -172,19 +337,77 @@ function App() {
     setExerciseLibrary(prev => [...prev, newExercise]);
   };
 
+  const handleImportExercises = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const text = e.target?.result;
+        if (typeof text === 'string') {
+            try {
+                const importedExercises = parseExercisesCSV(text);
+                if (importedExercises.length > 0) {
+                    setExerciseLibrary(prev => [...prev, ...importedExercises]);
+                    alert(`${importedExercises.length} תרגילים יובאו בהצלחה!`);
+                } else if (text.trim().split(/\r?\n/).length > 1) {
+                    // Alert is handled inside parseExercisesCSV for better feedback
+                }
+            } catch (error) {
+                console.error("Error parsing CSV:", error);
+                alert("אירעה שגיאה בעיבוד קובץ ה-CSV.");
+            }
+        }
+    };
+    reader.onerror = () => {
+         alert("אירעה שגיאה בקריאת הקובץ.");
+    };
+    reader.readAsText(file, 'UTF-8');
+  };
+
+   const handleExportExercises = () => {
+        const headers = ['id', 'name', 'equipment', 'description', 'sets', 'reps', 'duration', 'rest', 'safetyNotes', 'category', 'level'];
+        
+        const escapeCSV = (field: any): string => {
+            if (field === null || field === undefined) return '';
+            const str = String(field);
+            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+        };
+
+        const csvRows = [headers.join(',')];
+
+        exerciseLibrary.forEach(ex => {
+            const row = headers.map(header => escapeCSV(ex[header as keyof Exercise]));
+            csvRows.push(row.join(','));
+        });
+
+        const csvString = csvRows.join('\r\n');
+        const blob = new Blob(['\uFEFF' + csvString], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'exercise_library.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
   // --- Workout Template Handlers ---
    const handleOpenTemplateForm = (template: WorkoutTemplate | null) => {
         setTemplateToEdit(template);
         setIsTemplateFormModalOpen(true);
     };
 
-    const handleSaveTemplate = (title: string) => {
+    const handleSaveTemplate = (data: { title: string; level: typeof WORKOUT_LEVELS[number]; tags: string[] }) => {
         if (templateToEdit) { // Edit
-            setWorkoutTemplates(prev => prev.map(t => t.id === templateToEdit.id ? { ...t, title } : t));
+            setWorkoutTemplates(prev => prev.map(t => t.id === templateToEdit.id ? { ...t, ...data } : t));
         } else { // Create
             const newTemplate: WorkoutTemplate = {
                 id: crypto.randomUUID(),
-                title: title,
+                title: data.title,
+                level: data.level,
+                tags: data.tags,
                 type: "אימון מותאם",
                 duration: "",
                 exercises: []
@@ -216,6 +439,46 @@ function App() {
         setIsConfirmModalOpen(false);
         setIdToDelete(null);
     };
+    
+  // --- Weekly Plan Handlers ---
+    const handleOpenWeeklyPlanForm = (plan: WeeklyPlan | null) => {
+        setPlanToEdit(plan);
+        setIsWeeklyPlanFormModalOpen(true);
+    };
+
+    const handleSaveWeeklyPlan = (data: { name: string; level: typeof PLAN_LEVELS[number] }) => {
+        if (planToEdit) { // Edit mode
+            setWeeklyPlans(prev => prev.map(p => p.id === planToEdit.id ? { ...p, ...data } : p));
+        } else { // Create mode
+            const newPlan: WeeklyPlan = {
+                id: crypto.randomUUID(),
+                name: data.name,
+                level: data.level,
+                schedule: {}, // Empty schedule
+            };
+            setWeeklyPlans(prev => [...prev, newPlan]);
+        }
+        setIsWeeklyPlanFormModalOpen(false);
+        setPlanToEdit(null);
+    };
+
+    const handleConfirmDeleteWeeklyPlan = (planId: ID) => {
+        setIdToDelete({type: 'plan', id: planId});
+        setIsConfirmModalOpen(true);
+    };
+
+    const handleDeleteWeeklyPlan = () => {
+        if (!idToDelete || idToDelete.type !== 'plan') return;
+        
+        const remainingPlans = weeklyPlans.filter(p => p.id !== idToDelete.id);
+        setWeeklyPlans(remainingPlans);
+
+        if (activeWeeklyPlanId === idToDelete.id) {
+            setActiveWeeklyPlanId(remainingPlans[0]?.id || '');
+        }
+        setIsConfirmModalOpen(false);
+        setIdToDelete(null);
+    };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -236,42 +499,39 @@ function App() {
         return <ProgressTracker 
             completionLog={completionLog}
             onRemoveCompletion={handleRemoveCompletion}
+            onOpenFeedbackModal={handleOpenFeedbackModal}
+            onExportHistory={handleExportHistory}
         />;
       case 'library':
         return <ExerciseLibrary 
             exerciseLibrary={exerciseLibrary}
             workoutTemplates={workoutTemplates}
+            weeklyPlans={weeklyPlans}
             onAddExerciseToPlan={() => {}} // Deprecated - remove?
             onAddNewExercise={() => handleOpenExerciseForm(null)}
             onEditExercise={(ex) => handleOpenExerciseForm(ex)}
             onDeleteExercise={handleConfirmDeleteExercise}
             onDuplicateExercise={handleDuplicateExercise}
+            onImportExercises={handleImportExercises}
+            onExportExercises={handleExportExercises}
             // Template handlers
             onAddExerciseToTemplate={handleAddExerciseToTemplate}
             onRemoveExerciseFromTemplate={handleRemoveExerciseFromTemplate}
             onCreateTemplate={() => handleOpenTemplateForm(null)}
-            onUpdateTemplateTitle={(id, title) => {
-                const template = workoutTemplates.find(t => t.id === id);
-                if(template) handleOpenTemplateForm({...template, title});
-            }}
+            onEditTemplate={handleOpenTemplateForm}
             onDeleteTemplate={handleConfirmDeleteTemplate}
+             // Plan handlers
+            onCreateWeeklyPlan={() => handleOpenWeeklyPlanForm(null)}
+            onEditWeeklyPlan={handleOpenWeeklyPlanForm}
+            onDeleteWeeklyPlan={handleConfirmDeleteWeeklyPlan}
+            onUpdateWeeklyPlanSchedule={handleUpdateWeeklyPlanSchedule}
         />;
-      case 'info':
-        return (
-          <>
-            <InfoSection title="פרק א' - עקרונות יסוד" sections={PRINCIPLES} />
-            <InfoSection title="פרק ב' - התאמה אישית" sections={PAIN_MANAGEMENT} />
-            <InfoSection title="המשך התוכנית: חודשים 2-3" sections={FUTURE_PLAN} />
-            <div className="w-full max-w-4xl mx-auto p-4 md:p-6 text-right">
-                <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700">
-                    <h3 className="text-xl font-bold text-cyan-400 mb-3">{CONCLUSION.title}</h3>
-                    <div className="space-y-3 text-gray-300 leading-relaxed">
-                        {CONCLUSION.content.map((p, i) => <p key={i}>{p}</p>)}
-                    </div>
-                </div>
-            </div>
-          </>
-        );
+      case 'workout':
+        return <WorkoutSessionPage 
+            weeklyPlans={weeklyPlans}
+            workoutTemplates={workoutTemplates}
+            activeWeeklyPlanId={activeWeeklyPlanId}
+        />;
       default:
         return null;
     }
@@ -332,20 +592,49 @@ function App() {
             initialData={templateToEdit}
         />
        )}
+       
+       {isWeeklyPlanFormModalOpen && (
+        <WeeklyPlanFormModal
+            isOpen={isWeeklyPlanFormModalOpen}
+            onClose={() => { setIsWeeklyPlanFormModalOpen(false); setPlanToEdit(null); }}
+            onSave={handleSaveWeeklyPlan}
+            initialData={planToEdit}
+        />
+       )}
 
       {isConfirmModalOpen && idToDelete && (
         <ConfirmationModal
             isOpen={isConfirmModalOpen}
             onClose={() => setIsConfirmModalOpen(false)}
-            onConfirm={idToDelete.type === 'exercise' ? handleDeleteExerciseFromLibrary : handleDeleteTemplate}
-            title={idToDelete.type === 'exercise' ? "אישור מחיקת תרגיל" : "אישור מחיקת תבנית"}
-            message={idToDelete.type === 'exercise' 
-              ? "האם אתה בטוח שברצונך למחוק תרגיל זה מהספרייה? הוא יוסר גם מכל תבניות האימון." 
-              : "האם אתה בטוח שברצונך למחוק תבנית זו? היא תוסר מכל שבועות האימונים."
+            onConfirm={
+                idToDelete.type === 'exercise' ? handleDeleteExerciseFromLibrary : 
+                idToDelete.type === 'template' ? handleDeleteTemplate :
+                handleDeleteWeeklyPlan
+            }
+            title={
+                idToDelete.type === 'exercise' ? "אישור מחיקת תרגיל" : 
+                idToDelete.type === 'template' ? "אישור מחיקת תבנית" :
+                "אישור מחיקת תוכנית שבועית"
+            }
+            message={
+                idToDelete.type === 'exercise' 
+                ? "האם אתה בטוח שברצונך למחוק תרגיל זה מהספרייה? הוא יוסר גם מכל תבניות האימון." 
+                : idToDelete.type === 'template'
+                ? "האם אתה בטוח שברצונך למחוק תבנית זו? היא תוסר מכל שבועות האימונים."
+                : "האם אתה בטוח שברצונך למחוק תוכנית שבועית זו? לא ניתן יהיה לבחור אותה יותר בדף הראשי."
             }
         />
       )}
       
+      {isFeedbackModalOpen && feedbackLogDate && (
+        <FeedbackModal
+            isOpen={isFeedbackModalOpen}
+            onClose={() => setIsFeedbackModalOpen(false)}
+            onSave={handleSaveFeedback}
+            initialData={completionLog[feedbackLogDate]?.feedback}
+        />
+      )}
+
       <header className="bg-slate-800/80 backdrop-blur-sm sticky top-0 z-40 shadow-md">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-20">
@@ -356,7 +645,7 @@ function App() {
                     <TabButton tabName="plan" label="תוכנית אימונים" />
                     <TabButton tabName="progress" label="מעקב התקדמות" />
                     <TabButton tabName="library" label="ספרייה ועריכה" />
-                    <TabButton tabName="info" label="עקרונות ומידע" />
+                    <TabButton tabName="workout" label="אימון" />
                 </div>
             </div>
         </nav>
