@@ -43,7 +43,7 @@ const WeeklyPlanEditor: React.FC<WeeklyPlanEditorProps> = (props) => {
 
     return (
         <div>
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <div>
                     <h2 className="text-3xl md:text-4xl font-extrabold text-white">עורך תוכניות שבועיות</h2>
                     <p className="text-gray-400">בנה ונהל את תוכניות האימונים השבועיות שלך.</p>

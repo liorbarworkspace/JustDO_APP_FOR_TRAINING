@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect } from 'react';
 import type { Exercise } from '../types';
 import { EXERCISE_CATEGORIES, EXERCISE_LEVELS } from '../constants';
@@ -20,6 +22,7 @@ const emptyExercise: Omit<Exercise, 'id'> = {
     safetyNotes: '',
     category: 'כוח',
     level: 'מתחיל',
+    muscleGroups: [],
 };
 
 const ExerciseFormModal: React.FC<ExerciseFormModalProps> = ({ isOpen, onClose, onSave, initialData }) => {
@@ -35,6 +38,12 @@ const ExerciseFormModal: React.FC<ExerciseFormModalProps> = ({ isOpen, onClose, 
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
+
+        if (name === 'muscleGroups') {
+            setExercise(prev => ({ ...prev, muscleGroups: value.split(',').map(s => s.trim()) }));
+            return;
+        }
+
         const isNumber = type === 'number';
         setExercise(prev => ({
             ...prev,
@@ -61,9 +70,17 @@ const ExerciseFormModal: React.FC<ExerciseFormModalProps> = ({ isOpen, onClose, 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label htmlFor="category" className="block mb-2 text-sm font-medium text-gray-300">קטגוריה</label>
-                            <select name="category" value={exercise.category} onChange={handleChange} className="bg-slate-700 border border-slate-600 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block w-full p-2.5">
-                                {EXERCISE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
+                            <input 
+                                list="categories-datalist"
+                                name="category" 
+                                id="category"
+                                value={exercise.category} 
+                                onChange={handleChange} 
+                                className="bg-slate-700 border border-slate-600 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block w-full p-2.5" 
+                            />
+                            <datalist id="categories-datalist">
+                                {EXERCISE_CATEGORIES.map(c => <option key={c} value={c} />)}
+                            </datalist>
                         </div>
                         <div>
                            <label htmlFor="level" className="block mb-2 text-sm font-medium text-gray-300">רמה</label>
@@ -71,6 +88,18 @@ const ExerciseFormModal: React.FC<ExerciseFormModalProps> = ({ isOpen, onClose, 
                                 {EXERCISE_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
                             </select>
                         </div>
+                    </div>
+
+                    <div>
+                        <label htmlFor="muscleGroups" className="block mb-2 text-sm font-medium text-gray-300">קבוצות שרירים (מופרד בפסיק)</label>
+                        <input 
+                            type="text" 
+                            name="muscleGroups" 
+                            value={exercise.muscleGroups.join(', ')} 
+                            onChange={handleChange} 
+                            placeholder="לדוגמה: חזה, כתפיים, תלת ראשי"
+                            className="bg-slate-700 border border-slate-600 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block w-full p-2.5" 
+                        />
                     </div>
 
                      <div>

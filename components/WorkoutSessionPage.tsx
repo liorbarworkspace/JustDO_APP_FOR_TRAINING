@@ -237,7 +237,7 @@ const WorkoutSessionPage: React.FC<{
                 
                 {(isTimedExercise || sessionState === 'rest') && (
                     <div className="my-8">
-                        <p className="text-[7rem] font-mono font-bold text-white tracking-widest">{formatTime(timer)}</p>
+                        <p className="text-5xl sm:text-7xl lg:text-8xl font-mono font-bold text-white tracking-widest">{formatTime(timer)}</p>
                     </div>
                 )}
                 

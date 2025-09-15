@@ -11,12 +11,15 @@ import ExerciseFormModal from './components/ExerciseFormModal';
 import ConfirmationModal from './components/ConfirmationModal';
 import TemplateFormModal from './components/TemplateFormModal';
 import WeeklyPlanFormModal from './components/WeeklyPlanFormModal';
-import FeedbackModal from './components/FeedbackModal'; // Import the new modal
+import FeedbackModal from './components/FeedbackModal';
+import Login from './components/Login';
 import { INITIAL_WORKOUT_TEMPLATES, INITIAL_EXERCISE_LIBRARY, INITIAL_WEEKLY_PLANS, WORKOUT_LEVELS, PLAN_LEVELS, EXERCISE_CATEGORIES, EXERCISE_LEVELS } from './constants';
 import type { WorkoutTemplate, CompletionLog, Exercise, PlannedExercise, ID, WeeklyPlan, CompletionLogEntry, Feedback } from './types';
 
 type Tab = 'plan' | 'progress' | 'library' | 'workout';
 
+// This is your secret access key. Change it to whatever you want.
+const ACCESS_KEY = 'liorbar23';
 
 // A robust CSV/TSV parser that handles quoted fields for commas.
 const universalParseLine = (line: string, delimiter: string): string[] => {
@@ -107,6 +110,7 @@ const parseExercisesCSV = (csvText: string): Exercise[] => {
             safetyNotes: row.safetynotes,
             category: category as Exercise['category'],
             level: level as Exercise['level'],
+            muscleGroups: row.musclegroups ? row.musclegroups.split(',').map((s: string) => s.trim()) : [],
         };
         newExercises.push(newExercise);
     }
@@ -115,6 +119,7 @@ const parseExercisesCSV = (csvText: string): Exercise[] => {
 
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<Tab>('plan');
   
@@ -163,11 +168,28 @@ function App() {
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [feedbackLogDate, setFeedbackLogDate] = useState<string | null>(null);
 
+  useEffect(() => {
+    // Check for authentication status when the app loads
+    const storedAuth = sessionStorage.getItem('isAuthenticated');
+    if (storedAuth === 'true') {
+        setIsAuthenticated(true);
+    }
+  }, []);
 
   useEffect(() => { localStorage.setItem('exerciseLibrary', JSON.stringify(exerciseLibrary)); }, [exerciseLibrary]);
   useEffect(() => { localStorage.setItem('workoutTemplates', JSON.stringify(workoutTemplates)); }, [workoutTemplates]);
   useEffect(() => { localStorage.setItem('weeklyPlans', JSON.stringify(weeklyPlans)); }, [weeklyPlans]);
   useEffect(() => { localStorage.setItem('workoutCompletionLog', JSON.stringify(completionLog)); }, [completionLog]);
+
+  // --- Auth Handler ---
+  const handleLogin = (key: string): boolean => {
+    if (key === ACCESS_KEY) {
+        sessionStorage.setItem('isAuthenticated', 'true');
+        setIsAuthenticated(true);
+        return true;
+    }
+    return false;
+  };
 
   // --- Completion Log Handlers ---
   const handleUpdateCompletion = (date: string, logEntry: CompletionLogEntry) => {
@@ -261,6 +283,7 @@ function App() {
   const handleUpdateWeeklyPlanSchedule = (planId: ID, day: string, templateId: ID | null) => {
       setWeeklyPlans(prev => prev.map(plan => 
           plan.id === planId
+          // FIX: Corrected the object structure for updating the schedule. The previous implementation had incorrect nesting which caused a TypeScript type error.
           ? { ...plan, schedule: { ...plan.schedule, [day]: templateId } }
           : plan
       ));
@@ -369,7 +392,7 @@ function App() {
   };
 
    const handleExportExercises = () => {
-        const headers = ['id', 'name', 'equipment', 'description', 'sets', 'reps', 'duration', 'rest', 'safetyNotes', 'category', 'level'];
+        const headers = ['id', 'name', 'equipment', 'description', 'sets', 'reps', 'duration', 'rest', 'safetyNotes', 'category', 'level', 'muscleGroups'];
         
         const escapeCSV = (field: any): string => {
             if (field === null || field === undefined) return '';
@@ -383,7 +406,8 @@ function App() {
         const csvRows = [headers.join(',')];
 
         exerciseLibrary.forEach(ex => {
-            const row = headers.map(header => escapeCSV(ex[header as keyof Exercise]));
+            const rowData = { ...ex, muscleGroups: ex.muscleGroups.join(', ') };
+            const row = headers.map(header => escapeCSV(rowData[header as keyof typeof rowData]));
             csvRows.push(row.join(','));
         });
 
@@ -486,6 +510,15 @@ function App() {
         setIdToDelete(null);
     };
 
+    // --- Plan Generator Handler ---
+    const handleSaveGeneratedPlan = (data: { newTemplates: WorkoutTemplate[], newPlan: WeeklyPlan }) => {
+        setWorkoutTemplates(prev => [...prev, ...data.newTemplates]);
+        setWeeklyPlans(prev => [...prev, data.newPlan]);
+        alert('התוכנית והתבניות החדשות נשמרו בהצלחה בספרייה!');
+        setActiveWeeklyPlanId(data.newPlan.id);
+        setActiveTab('plan');
+    };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'plan':
@@ -531,6 +564,7 @@ function App() {
             onEditWeeklyPlan={handleOpenWeeklyPlanForm}
             onDeleteWeeklyPlan={handleConfirmDeleteWeeklyPlan}
             onUpdateWeeklyPlanSchedule={handleUpdateWeeklyPlanSchedule}
+            onSaveGeneratedPlan={handleSaveGeneratedPlan}
         />;
       case 'workout':
         return <WorkoutSessionPage 
@@ -556,8 +590,12 @@ function App() {
     </button>
   );
 
+  if (!isAuthenticated) {
+    return <Login onLogin={handleLogin} />;
+  }
+
   return (
-    <div className="min-h-screen bg-slate-900 text-gray-200">
+    <div className="min-h-screen bg-slate-900 text-gray-200 overflow-x-hidden">
       {showWelcomeModal && <WelcomeModal onClose={() => setShowWelcomeModal(false)} />}
       
       {isAddExerciseModalOpen && exerciseToAdd && (

@@ -11,8 +11,10 @@ export interface Exercise {
   duration?: number; // in seconds
   rest: string;
   safetyNotes: string;
-  category: 'כוח' | 'ליבה' | 'אירובי' | 'קליסטניקס' | 'כדורסל' | 'חימום' | 'גמישות';
+  // FIX: Added 'שיקום' and 'הרפיה' to the category type to match the categories used in constants.ts.
+  category: 'כוח' | 'ליבה' | 'אירובי' | 'קליסטניקס' | 'כדורסל' | 'חימום' | 'גמישות' | 'שיקום' | 'הרפיה';
   level: 'מתחיל' | 'בינוני' | 'מתקדם';
+  muscleGroups: string[];
 }
 
 export interface PlannedExercise extends Exercise {

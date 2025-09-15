@@ -1,7 +1,7 @@
 
 import type { Exercise, PlannedExercise, WorkoutTemplate, WeeklyPlan, ContentSection } from './types';
 
-export const EXERCISE_CATEGORIES = ['כוח', 'ליבה', 'אירובי', 'קליסטניקס', 'כדורסל', 'חימום', 'גמישות'] as const;
+export const EXERCISE_CATEGORIES = ['כוח', 'ליבה', 'אירובי', 'קליסטניקס', 'כדורסל', 'חימום', 'גמישות', 'שיקום', 'הרפיה'] as const;
 export const EXERCISE_LEVELS = ['מתחיל', 'בינוני', 'מתקדם'] as const;
 export const DAYS_OF_WEEK = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'] as const;
 
@@ -22,6 +22,7 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "להקפיד על תנועה מבוקרת, אין להוריד את המשקולות מהר מדי.",
     category: "כוח",
     level: "מתחיל",
+    muscleGroups: ['חזה', 'כתפיים', 'תלת ראשי'],
   },
   {
     id: 'force-2',
@@ -33,6 +34,7 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "להקפיד על גב ישר, להימנע משקיעה של הגב התחתון.",
     category: "כוח",
     level: "מתחיל",
+    muscleGroups: ['חזה', 'כתפיים', 'תלת ראשי'],
   },
   {
     id: 'force-3',
@@ -44,6 +46,7 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "להקפיד על גב ישר ויציב, להימנע מסיבוב הגוף.",
     category: "כוח",
     level: "מתחיל",
+    muscleGroups: ['גב עליון', 'רחב גבי', 'דו ראשי'],
   },
   {
     id: 'force-4',
@@ -55,6 +58,7 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "יש לשמור על גב ישר ומבט לפנים. להקפיד שהברכיים לא יעברו את קו הבהונות.",
     category: "כוח",
     level: "מתחיל",
+    muscleGroups: ['ארבע ראשי', 'ירך אחורית', 'ישבן'],
   },
   {
     id: 'force-5',
@@ -66,6 +70,7 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "יש לשמור על פלג גוף עליון ישר ויציב.",
     category: "כוח",
     level: "מתחיל",
+    muscleGroups: ['ארבע ראשי', 'ירך אחורית', 'ישבן'],
   },
   // ליבה
   {
@@ -78,6 +83,7 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "להקפיד על נשימה סדירה. יש להפסיק מיד אם מופיע כאב גב.",
     category: "ליבה",
     level: "מתחיל",
+    muscleGroups: ['שרירי ליבה', 'בטן ישרה'],
   },
    // קליסטניקס
   {
@@ -90,6 +96,7 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "תרגיל זה הוא בסיס מצוין למתח. הוא מפתח כוח בגב ובזרועות ללא עומס גדול מדי.",
     category: "קליסטניקס",
     level: "מתחיל",
+    muscleGroups: ['גב עליון', 'רחב גבי', 'דו ראשי'],
   },
   // אירובי
   {
@@ -102,6 +109,7 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "כלי מצוין לחימום אירובי ולשיפור קואורדינציה.",
     category: "אירובי",
     level: "מתחיל",
+    muscleGroups: ['שוקיים', 'סיבולת לב-ריאה'],
   },
   // כדורסל
   {
@@ -114,6 +122,7 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "יש להתמקד בשליטה ודיוק, במיוחד בכדרור ביד החלשה.",
     category: "כדורסל",
     level: "מתחיל",
+    muscleGroups: ['כל הגוף'],
   },
   {
     id: 'basketball-2',
@@ -125,6 +134,7 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "חשוב לבצע חימום טוב לפני המשחק ולשמור על שתיית מים.",
     category: "כדורסל",
     level: "בינוני",
+    muscleGroups: ['כל הגוף'],
   },
   // חימום
   {
@@ -137,6 +147,7 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "בצעו את התנועה לאט ובטווח תנועה מלא.",
     category: "חימום",
     level: "מתחיל",
+    muscleGroups: ['כתפיים'],
   },
   {
     id: 'warmup-2',
@@ -148,6 +159,7 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "שמרו על גב ישר והפעילו את שרירי הבטן.",
     category: "חימום",
     level: "מתחיל",
+    muscleGroups: ['כופפי ירך', 'ליבה'],
   },
   // גמישות
   {
@@ -160,6 +172,7 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "הימנעו מנעילת הברך ושמרו על גב יחסית ישר.",
     category: "גמישות",
     level: "מתחיל",
+    muscleGroups: ['ירך אחורית'],
   },
   {
     id: 'flex-2',
@@ -171,6 +184,33 @@ export const INITIAL_EXERCISE_LIBRARY: Exercise[] = [
     safetyNotes: "נשמו עמוק והרגישו את המתיחה בגב התחתון.",
     category: "גמישות",
     level: "מתחיל",
+    muscleGroups: ['גב תחתון', 'ירכיים'],
+  },
+  // שיקום
+  {
+    id: 'rehab-1',
+    name: "הרמת רגל ישרה בשכיבה",
+    equipment: "משקל גוף, מזרון",
+    description: "שכב על הגב עם רגל אחת כפופה. הרם את הרגל השנייה ישר למעלה באיטיות, כווץ את שריר הארבע ראשי, והורד באיטיות. תרגיל מצוין לחיזוק השרירים סביב הברך ללא עומס.",
+    sets: 3, reps: '10-15 לכל רגל',
+    rest: "30 שניות",
+    safetyNotes: "בצע את התנועה לאט ובשליטה מלאה. הימנע מהנפת הרגל.",
+    category: "שיקום",
+    level: "מתחיל",
+    muscleGroups: ['ארבע ראשי', 'כופפי ירך'],
+  },
+  // הרפיה
+  {
+    id: 'relax-1',
+    name: "נשימות סרעפתיות",
+    equipment: "משקל גוף, מזרון",
+    description: "שכב על הגב, הנח יד אחת על החזה ויד שנייה על הבטן. נשום עמוק דרך האף כך שרק היד על הבטן עולה. נשוף לאט דרך הפה. תרגיל זה מרגיע את מערכת העצבים ומסייע בהתאוששות.",
+    duration: 300, // 5 minutes
+    rest: "",
+    safetyNotes: "התמקד בהרפיית הגוף בכל נשיפה.",
+    category: "הרפיה",
+    level: "מתחיל",
+    muscleGroups: ['סרעפת', 'ליבה'],
   },
 ];
 
@@ -231,8 +271,8 @@ export const INITIAL_WORKOUT_TEMPLATES: WorkoutTemplate[] = [
         type: "שחרור ומתיחות",
         duration: "",
         level: "כל הרמות",
-        tags: ["גמישות"],
-        exercises: createPlannedExercises(['flex-1', 'flex-2']),
+        tags: ["גמישות", "הרפיה"],
+        exercises: createPlannedExercises(['flex-1', 'flex-2', 'relax-1']),
     },
     {
         id: 'workout-game',

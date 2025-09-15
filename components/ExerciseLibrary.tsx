@@ -1,15 +1,17 @@
 
-import React, { useState, useRef } from 'react';
+
+
+import React, { useState, useRef, useMemo } from 'react';
 import { EXERCISE_CATEGORIES, EXERCISE_LEVELS } from '../constants';
 import ExerciseCard from './ExerciseCard';
 import WorkoutTemplateEditor from './WorkoutTemplateEditor';
 import WeeklyPlanEditor from './WeeklyPlanEditor';
+import PlanGenerator from './PlanGenerator';
 import type { Exercise, WorkoutTemplate, ID, WeeklyPlan } from '../types';
 import { PlusIcon, UploadCloudIcon, DownloadIcon } from './icons';
 
-type Category = typeof EXERCISE_CATEGORIES[number] | 'הכל';
 type Level = typeof EXERCISE_LEVELS[number] | 'הכל';
-type LibraryTab = 'exercises' | 'templates' | 'plans';
+type LibraryTab = 'exercises' | 'templates' | 'plans' | 'generator';
 
 interface ExerciseLibraryProps {
     exerciseLibrary: Exercise[];
@@ -34,6 +36,8 @@ interface ExerciseLibraryProps {
     onEditWeeklyPlan: (plan: WeeklyPlan) => void;
     onDeleteWeeklyPlan: (planId: ID) => void;
     onUpdateWeeklyPlanSchedule: (planId: ID, day: string, templateId: ID | null) => void;
+    // Generator handler
+    onSaveGeneratedPlan: (data: { newTemplates: WorkoutTemplate[], newPlan: WeeklyPlan }) => void;
 }
 
 const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
@@ -52,13 +56,19 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
         onEditWeeklyPlan,
         onDeleteWeeklyPlan,
         onUpdateWeeklyPlanSchedule,
+        onSaveGeneratedPlan,
         ...templateHandlers
     } = props;
     
     const [activeTab, setActiveTab] = useState<LibraryTab>('exercises');
-    const [activeCategory, setActiveCategory] = useState<Category>('הכל');
+    const [activeCategory, setActiveCategory] = useState<string>('הכל');
     const [activeLevel, setActiveLevel] = useState<Level>('הכל');
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const availableCategories = useMemo(() => {
+        const allCategories = new Set([...EXERCISE_CATEGORIES, ...exerciseLibrary.map(ex => ex.category)]);
+        return Array.from(allCategories).sort((a, b) => a.localeCompare(b, 'he'));
+    }, [exerciseLibrary]);
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -97,21 +107,22 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
                         <TabButton tabName="exercises" label="תרגילים" />
                         <TabButton tabName="templates" label="תבניות אימון" />
                         <TabButton tabName="plans" label="תוכניות שבועיות" />
+                        <TabButton tabName="generator" label="אשף תוכניות" />
                     </nav>
                 </div>
             </div>
 
             {activeTab === 'exercises' && (
                 <div>
-                    <div className="flex justify-between items-center mb-2">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                         <div>
                             <h2 className="text-3xl md:text-4xl font-extrabold text-white">ספריית תרגילים</h2>
                             <p className="text-gray-400">נהל את אוסף התרגילים שלך והוסף אותם לתבניות אימון.</p>
                         </div>
-                         <div className="flex items-center gap-2">
+                         <div className="w-full md:w-auto flex flex-wrap items-center justify-start md:justify-end gap-2">
                             <button
                                 onClick={() => fileInputRef.current?.click()}
-                                className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
+                                className="w-full sm:w-auto justify-center bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
                             >
                                 <UploadCloudIcon className="w-5 h-5" />
                                 <span>ייבוא</span>
@@ -125,14 +136,14 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
                             />
                              <button
                                 onClick={onExportExercises}
-                                className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
+                                className="w-full sm:w-auto justify-center bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
                             >
                                 <DownloadIcon className="w-5 h-5" />
                                 <span>ייצוא</span>
                             </button>
                             <button
                                 onClick={onAddNewExercise}
-                                className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
+                                className="w-full sm:w-auto justify-center bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
                             >
                                 <PlusIcon className="w-5 h-5" />
                                 <span>תרגיל חדש</span>
@@ -144,7 +155,7 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
                         <div className="flex flex-wrap justify-center gap-2">
                             <span className="font-semibold self-center mr-4">קטגוריה:</span>
                             <button onClick={() => setActiveCategory('הכל')} className={`px-4 py-2 rounded-md font-semibold text-sm transition-all duration-300 ${activeCategory === 'הכל' ? 'bg-cyan-600 text-white shadow-lg' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}>הכל</button>
-                            {EXERCISE_CATEGORIES.map(cat => <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-4 py-2 rounded-md font-semibold text-sm transition-all duration-300 ${activeCategory === cat ? 'bg-cyan-600 text-white shadow-lg' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}>{cat}</button>)}
+                            {availableCategories.map(cat => <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-4 py-2 rounded-md font-semibold text-sm transition-all duration-300 ${activeCategory === cat ? 'bg-cyan-600 text-white shadow-lg' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}>{cat}</button>)}
                         </div>
                         <div className="flex flex-wrap justify-center gap-2">
                             <span className="font-semibold self-center mr-4">רמה:</span>
@@ -185,6 +196,14 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
                     onEditPlan={onEditWeeklyPlan}
                     onDeletePlan={onDeleteWeeklyPlan}
                     onUpdateSchedule={onUpdateWeeklyPlanSchedule}
+                />
+            )}
+
+            {activeTab === 'generator' && (
+                <PlanGenerator
+                    exerciseLibrary={exerciseLibrary}
+                    existingTemplates={workoutTemplates}
+                    onSavePlan={onSaveGeneratedPlan}
                 />
             )}
         </div>

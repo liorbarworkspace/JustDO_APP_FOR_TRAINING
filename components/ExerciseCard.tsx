@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { Exercise } from '../types';
 import { DumbbellIcon, BodyweightIcon, RingsIcon, JumpRopeIcon, BasketballIcon, ChevronDownIcon, PlusIcon, EditIcon, TrashIcon, DuplicateIcon } from './icons';
@@ -72,8 +73,17 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({ exercise, onAddToPlan, onEd
             )}
         </div>
         
+        {/* Muscle Groups */}
+        <div className="flex flex-wrap gap-1 my-3">
+            {exercise.muscleGroups.map(group => (
+                <span key={group} className="bg-slate-700 text-gray-300 text-xs font-medium px-2 py-0.5 rounded">
+                    {group}
+                </span>
+            ))}
+        </div>
+        
         {/* Equipment */}
-        <div className="flex items-center text-sm text-gray-400 my-4">
+        <div className="flex items-center text-sm text-gray-400 my-2">
           {getEquipmentIcon(exercise.equipment)}
           <span>{exercise.equipment}</span>
         </div>
