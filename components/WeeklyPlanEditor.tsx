@@ -15,9 +15,9 @@ interface WeeklyPlanEditorProps {
 }
 
 const levelColorMap: { [key: string]: string } = {
-    'מתחיל': 'bg-green-900 text-green-300',
-    'בינוני': 'bg-yellow-900 text-yellow-300',
-    'מתקדם': 'bg-red-900 text-red-300',
+    'מתחיל': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+    'בינוני': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+    'מתקדם': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
 };
 
 const WeeklyPlanEditor: React.FC<WeeklyPlanEditorProps> = (props) => {
@@ -45,38 +45,38 @@ const WeeklyPlanEditor: React.FC<WeeklyPlanEditorProps> = (props) => {
         <div>
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <div>
-                    <h2 className="text-3xl md:text-4xl font-extrabold text-white">עורך תוכניות שבועיות</h2>
-                    <p className="text-gray-400">בנה ונהל את תוכניות האימונים השבועיות שלך.</p>
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight">עורך תוכניות שבועיות</h2>
+                    <p className="text-slate-500 dark:text-gray-400 mt-2 text-lg">בנה ונהל את תוכניות האימונים השבועיות שלך.</p>
                 </div>
                 <button
                     onClick={onCreatePlan}
-                    className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
+                    className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
                 >
                     <PlusIcon className="w-5 h-5" />
                     <span>תוכנית חדשה</span>
                 </button>
             </div>
 
-            <div className="my-8 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+            <div className="my-8 p-4 bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
                 <div className="flex flex-wrap items-center justify-center gap-2">
-                    <span className="font-semibold text-gray-300 ml-4">סינון לפי רמה:</span>
-                    <button onClick={() => setActiveLevel('הכל')} className={`px-4 py-2 rounded-md font-semibold text-sm transition-all duration-300 ${activeLevel === 'הכל' ? 'bg-cyan-600 text-white shadow-lg' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}>הכל</button>
-                    {PLAN_LEVELS.map(level => <button key={level} onClick={() => setActiveLevel(level)} className={`px-4 py-2 rounded-md font-semibold text-sm transition-all duration-300 ${activeLevel === level ? 'bg-cyan-600 text-white shadow-lg' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}>{level}</button>)}
+                    <span className="font-semibold text-slate-700 dark:text-gray-300 ml-4">סינון לפי רמה:</span>
+                    <button onClick={() => setActiveLevel('הכל')} className={`px-4 py-2 rounded-full font-semibold text-sm transition-all duration-300 ${activeLevel === 'הכל' ? 'bg-amber-500 text-white shadow-lg' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-gray-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>הכל</button>
+                    {PLAN_LEVELS.map(level => <button key={level} onClick={() => setActiveLevel(level)} className={`px-4 py-2 rounded-full font-semibold text-sm transition-all duration-300 ${activeLevel === level ? 'bg-amber-500 text-white shadow-lg' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-gray-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>{level}</button>)}
                 </div>
             </div>
             
             <div className="space-y-4">
                 {filteredPlans.map(plan => (
-                    <div key={plan.id} className="bg-slate-800 rounded-lg border border-slate-700">
+                    <div key={plan.id} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
                         <div className="p-4">
                             <div className="flex justify-between items-center">
                                  <button onClick={() => handleToggleExpand(plan.id)} className="flex items-center gap-2 text-right">
                                     <ChevronDownIcon className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${expandedPlanId === plan.id ? 'rotate-180' : ''}`} />
-                                    <h3 className="text-xl font-bold text-cyan-400">{plan.name}</h3>
+                                    <h3 className="text-xl font-bold text-amber-600 dark:text-amber-400">{plan.name}</h3>
                                 </button>
                                 <div className="flex items-center gap-2">
-                                    <button onClick={() => onEditPlan(plan)} className="p-2 text-cyan-400 hover:bg-slate-700 rounded-full"><EditIcon className="w-5 h-5"/></button>
-                                    <button onClick={() => onDeletePlan(plan.id)} className="p-2 text-red-400 hover:bg-slate-700 rounded-full"><TrashIcon className="w-5 h-5"/></button>
+                                    <button onClick={() => onEditPlan(plan)} className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full"><EditIcon className="w-5 h-5"/></button>
+                                    <button onClick={() => onDeletePlan(plan.id)} className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full"><TrashIcon className="w-5 h-5"/></button>
                                 </div>
                             </div>
                             <div className="pr-7 mt-2">
@@ -85,15 +85,15 @@ const WeeklyPlanEditor: React.FC<WeeklyPlanEditorProps> = (props) => {
                         </div>
 
                         {expandedPlanId === plan.id && (
-                            <div className="p-4 border-t border-slate-700 space-y-3">
-                                <p className="text-gray-400 mb-2">שבץ תבניות אימון לכל יום:</p>
+                            <div className="p-4 border-t border-slate-200 dark:border-slate-700 space-y-3">
+                                <p className="text-slate-500 dark:text-gray-400 mb-2">שבץ תבניות אימון לכל יום:</p>
                                 {DAYS_OF_WEEK.map(day => (
-                                    <div key={day} className="flex justify-between items-center bg-slate-700/50 p-3 rounded">
+                                    <div key={day} className="flex justify-between items-center bg-slate-100 dark:bg-slate-700/50 p-3 rounded">
                                         <span className="font-semibold">{day}</span>
                                         <select
                                             value={plan.schedule[day] || ''}
                                             onChange={(e) => onUpdateSchedule(plan.id, day, e.target.value || null)}
-                                            className="bg-slate-700 border border-slate-600 text-white text-md rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2"
+                                            className="bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-md rounded-lg focus:ring-amber-500 focus:border-amber-500 block p-2"
                                             aria-label={`בחר אימון ליום ${day}`}
                                         >
                                             <option value="">-- מנוחה --</option>

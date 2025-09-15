@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Exercise, WorkoutTemplate, WeeklyPlan, PlannedExercise } from '../types';
 import { PLAN_LEVELS, DAYS_OF_WEEK } from '../constants';
@@ -10,8 +8,6 @@ interface PlanGeneratorProps {
     existingTemplates: WorkoutTemplate[];
     onSavePlan: (data: { newTemplates: WorkoutTemplate[], newPlan: WeeklyPlan }) => void;
 }
-
-const baseEquipmentKeywords = ['משקולות', 'מזרון', 'ספסל', 'כיסא', 'טבעות', 'דלגית', 'כדורסל', 'משקל גוף'];
 
 type Goal = 'general_fitness' | 'strength' | 'basketball' | 'endurance' | 'core_strength' | 'mobility_flexibility' | 'rehab_relaxation';
 type Level = typeof PLAN_LEVELS[number];
@@ -37,21 +33,38 @@ const PlanGenerator: React.FC<PlanGeneratorProps> = ({ exerciseLibrary, existing
     const [generatedResult, setGeneratedResult] = useState<{ newTemplates: WorkoutTemplate[], newPlan: WeeklyPlan } | null>(null);
     const [generationError, setGenerationError] = useState<string | null>(null);
 
-    // Clear error message when user changes settings
     useEffect(() => {
         setGenerationError(null);
     }, [mainGoals, level, workoutDays, equipment]);
 
     const availableEquipment = useMemo(() => {
+        const baseTerms = ['משקולות', 'מזרון', 'ספסל', 'כיסא', 'טבעות', 'דלגית', 'כדורסל', 'משקל גוף', 'מגרש'];
         const equipmentSet = new Set<string>();
+
         exerciseLibrary.forEach(ex => {
-            baseEquipmentKeywords.forEach(keyword => {
-                if (ex.equipment.includes(keyword)) {
-                    equipmentSet.add(keyword);
+            const parts = ex.equipment.split(/[,\/]/);
+            parts.forEach(part => {
+                const trimmedPart = part.trim();
+                if (trimmedPart) {
+                    let matched = false;
+                    for (const term of baseTerms) {
+                        if (trimmedPart.includes(term)) {
+                            equipmentSet.add(term);
+                            matched = true;
+                        }
+                    }
+                    if (!matched) {
+                        equipmentSet.add(trimmedPart);
+                    }
                 }
             });
         });
-        return Array.from(equipmentSet);
+
+        if (exerciseLibrary.some(ex => ex.equipment.includes('משקל גוף'))) {
+             equipmentSet.add('משקל גוף');
+        }
+
+        return Array.from(equipmentSet).sort((a, b) => a.localeCompare(b, 'he'));
     }, [exerciseLibrary]);
 
     const handleDayToggle = (day: string) => {
@@ -64,7 +77,6 @@ const PlanGenerator: React.FC<PlanGeneratorProps> = ({ exerciseLibrary, existing
         setMainGoals(prev => {
             const isSelected = prev.includes(goal);
             if (isSelected) {
-                // Prevent removing the last selected goal
                 return prev.length > 1 ? prev.filter(g => g !== goal) : prev;
             } else {
                 return [...prev, goal];
@@ -77,77 +89,78 @@ const PlanGenerator: React.FC<PlanGeneratorProps> = ({ exerciseLibrary, existing
             prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]
         );
     };
+    
+    const handleSelectAllEquipment = () => {
+        setEquipment(availableEquipment);
+    };
+
+    const handleClearAllEquipment = () => {
+        setEquipment([]);
+    };
+
 
     const generatePlanLogic = () => {
-        let errorOccurred = false;
         setGenerationError(null);
 
-        // 1. Validation: Check if exercises for the selected level exist
-        const exercisesForLevel = exerciseLibrary.filter(ex => ex.level === level);
-        if (exercisesForLevel.length === 0) {
-            setGenerationError(`לא נמצאו תרגילים בספרייה עבור רמת "${level}". אנא הוסף תרגילים מתאימים או בחר רמה אחרת.`);
+        const availableExercises = exerciseLibrary.filter(ex => {
+            const levelMatch = ex.level === level;
+            const equipmentMatch = equipment.some(eq => ex.equipment.toLowerCase().includes(eq.toLowerCase()));
+            return levelMatch && equipmentMatch;
+        });
+
+        if (availableExercises.length < 5) {
+            setGenerationError(`לא נמצאו מספיק תרגילים בספרייה התואמים לרמה ("${level}") ולציוד שבחרת. נסה להוסיף תרגילים או לשנות את בחירתך.`);
             return;
         }
 
-        // 2. Filter exercises based on user criteria
-        const filteredByEquipment = exercisesForLevel.filter(ex => {
-            if (equipment.includes('משקל גוף') && ex.equipment.includes('משקל גוף')) return true;
-            return equipment.some(eq => ex.equipment.includes(eq));
-        });
-
-        const groupedExercises = new Map<string, Exercise[]>();
-        filteredByEquipment.forEach(ex => {
-            if (!groupedExercises.has(ex.category)) {
-                groupedExercises.set(ex.category, []);
-            }
-            groupedExercises.get(ex.category)!.push(ex);
-        });
-
-        // Helper to pick exercises. Allows reusing exercises in different templates.
-        const pickExercises = (category: Exercise['category'], count: number): PlannedExercise[] => {
-            if (errorOccurred) return [];
-            const available = shuffleArray(groupedExercises.get(category) || []);
-            const selected = available.slice(0, count);
-            
-            if (selected.length < count && !['חימום', 'גמישות', 'הרפיה'].includes(category)) {
-                 setGenerationError(`אין מספיק תרגילים בקטגוריית "${category}" עבור הדרישות שלך. נסה להוסיף עוד תרגילים לספרייה.`);
-                 errorOccurred = true;
-            }
-            return selected.map(ex => ({...ex, planInstanceId: crypto.randomUUID()}));
-        };
-
         const goalRecipes: Record<Goal, Exercise['category'][]> = {
-            general_fitness: ['כוח', 'כוח', 'ליבה', 'אירובי'],
-            strength: ['כוח', 'כוח', 'כוח', 'כוח', 'ליבה'],
-            basketball: ['כדורסל', 'כוח', 'כוח', 'אירובי'],
-            endurance: ['אירובי', 'אירובי', 'כוח', 'כוח'],
-            core_strength: ['ליבה', 'ליבה', 'ליבה', 'כוח'],
-            mobility_flexibility: ['גמישות', 'גמישות', 'גמישות', 'גמישות'],
-            rehab_relaxation: ['שיקום', 'שיקום', 'הרפיה', 'הרפיה'],
+            general_fitness: ['כוח', 'ליבה', 'אירובי'],
+            strength: ['כוח', 'קליסטניקס'],
+            basketball: ['כדורסל', 'אירובי', 'ליבה', 'קליסטניקס'],
+            endurance: ['אירובי', 'אירובי'],
+            core_strength: ['ליבה', 'ליבה'],
+            mobility_flexibility: ['גמישות', 'הרפיה'],
+            rehab_relaxation: ['שיקום', 'הרפיה', 'גמישות'],
         };
-        
-        const mainExercisesPerWorkout = 4;
-        const categoryPool: Exercise['category'][] = mainGoals.flatMap(goal => goalRecipes[goal]);
-        
-        const combinedGoalLabels = goalOptions.filter(opt => mainGoals.includes(opt.key)).map(opt => opt.label).join(' ו');
-        const planName = `תוכנית משולבת: ${combinedGoalLabels} - ${level}`;
+        const preferredCategories = new Set(mainGoals.flatMap(goal => goalRecipes[goal]));
 
+        let exercisePool = shuffleArray(availableExercises);
         const newTemplates: WorkoutTemplate[] = [];
+        const mainExercisesPerWorkout = 4;
         const numTemplatesToCreate = Math.min(workoutDays.length, 2);
+        
+        const pickFromPool = (categories: Exercise['category'][]): Exercise | null => {
+            const index = exercisePool.findIndex(ex => categories.includes(ex.category));
+            if (index > -1) {
+                return exercisePool.splice(index, 1)[0];
+            }
+            return null;
+        }
 
         for (let i = 0; i < numTemplatesToCreate; i++) {
-            if (errorOccurred) break;
             const templateExercises: PlannedExercise[] = [];
-            templateExercises.push(...pickExercises('חימום', 1));
 
-            const categoriesForThisTemplate = shuffleArray(categoryPool).slice(0, mainExercisesPerWorkout);
-            categoriesForThisTemplate.forEach(cat => {
-                templateExercises.push(...pickExercises(cat, 1));
-            });
+            const warmup = pickFromPool(['חימום']);
+            if (warmup) templateExercises.push({ ...warmup, planInstanceId: crypto.randomUUID() });
+
+            for (let j = 0; j < mainExercisesPerWorkout; j++) {
+                let picked = pickFromPool(Array.from(preferredCategories));
+                if (!picked) {
+                    const fallbackCategories = [...new Set(exercisePool.map(e => e.category))].filter(c => !['חימום', 'גמישות', 'הרפיה'].includes(c));
+                    picked = pickFromPool(fallbackCategories);
+                }
+                if (picked) {
+                    templateExercises.push({ ...picked, planInstanceId: crypto.randomUUID() });
+                }
+            }
             
-            templateExercises.push(...pickExercises('גמישות', 1));
-            
-            if (errorOccurred) break;
+            const cooldown = pickFromPool(['גמישות', 'הרפיה']);
+            if (cooldown) templateExercises.push({ ...cooldown, planInstanceId: crypto.randomUUID() });
+
+            if (templateExercises.length < 3) {
+                 setGenerationError("לא ניתן היה ליצור אימון מלא מהתרגילים הזמינים. נסה לבחור ציוד נוסף או להוסיף תרגילים לספרייה.");
+                 return;
+            }
 
             const template: WorkoutTemplate = {
                 id: crypto.randomUUID(),
@@ -161,7 +174,8 @@ const PlanGenerator: React.FC<PlanGeneratorProps> = ({ exerciseLibrary, existing
             newTemplates.push(template);
         }
 
-        if (errorOccurred) return;
+        const combinedGoalLabels = goalOptions.filter(opt => mainGoals.includes(opt.key)).map(opt => opt.label).join(' ו');
+        const planName = `תוכנית: ${combinedGoalLabels} - ${level}`;
         
         const schedule: WeeklyPlan['schedule'] = {};
         const activeRestTemplateId = existingTemplates.find(t => t.id === 'workout-active-rest')?.id || null;
@@ -218,26 +232,26 @@ const PlanGenerator: React.FC<PlanGeneratorProps> = ({ exerciseLibrary, existing
     if (step === 2 && generatedResult) {
         return (
             <div className="text-right">
-                <h2 className="text-3xl md:text-4xl font-extrabold text-white">התוכנית שלך מוכנה!</h2>
-                <p className="text-gray-400 mb-6">זוהי התוכנית השבועית שהאשף יצר עבורך. תוכל לשמור אותה לספרייה או להתחיל מחדש.</p>
-                <div className="bg-slate-800/50 rounded-lg p-6 border border-cyan-500">
-                    <h3 className="text-2xl font-bold text-cyan-400 mb-4">{generatedResult.newPlan.name}</h3>
+                <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight font-rubik">התוכנית שלך מוכנה!</h2>
+                <p className="text-slate-500 dark:text-gray-400 mb-6 mt-2 text-lg">זוהי התוכנית השבועית שהאשף יצר עבורך. תוכל לשמור אותה לספרייה או להתחיל מחדש.</p>
+                <div className="bg-white dark:bg-slate-800/50 rounded-xl p-6 border border-amber-200 dark:border-amber-500/50 shadow-sm">
+                    <h3 className="text-2xl font-bold text-amber-600 dark:text-amber-400 mb-4">{generatedResult.newPlan.name}</h3>
                     <div className="mb-6">
-                        <h4 className="font-semibold text-white mb-2">תבניות אימון חדשות שנוצרו:</h4>
-                        <ul className="list-disc list-inside text-gray-300">
+                        <h4 className="font-semibold text-slate-900 dark:text-white mb-2">תבניות אימון חדשות שנוצרו:</h4>
+                        <ul className="list-disc list-inside text-slate-600 dark:text-gray-300">
                             {generatedResult.newTemplates.map(t => <li key={t.id}>{t.title} ({t.exercises.length} תרגילים)</li>)}
                         </ul>
                     </div>
                     <div>
-                         <h4 className="font-semibold text-white mb-2">מערכת שבועית:</h4>
+                         <h4 className="font-semibold text-slate-900 dark:text-white mb-2">מערכת שבועית:</h4>
                          <div className="space-y-2">
                             {DAYS_OF_WEEK.map(day => {
                                 const templateId = generatedResult.newPlan.schedule[day];
                                 const template = generatedResult.newTemplates.find(t => t.id === templateId) || existingTemplates.find(t => t.id === templateId);
                                 return (
-                                    <div key={day} className="flex justify-between items-center bg-slate-700 p-2 rounded-md">
+                                    <div key={day} className="flex justify-between items-center bg-slate-100 dark:bg-slate-700 p-2 rounded-md">
                                         <span className="font-semibold">{day}</span>
-                                        <span className="text-cyan-300">{template ? template.title : 'מנוחה'}</span>
+                                        <span className="text-amber-600 dark:text-amber-300">{template ? template.title : 'מנוחה'}</span>
                                     </div>
                                 )
                             })}
@@ -245,10 +259,10 @@ const PlanGenerator: React.FC<PlanGeneratorProps> = ({ exerciseLibrary, existing
                     </div>
                 </div>
                 <div className="flex justify-end gap-4 mt-6">
-                    <button onClick={handleStartOver} className="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">
+                    <button onClick={handleStartOver} className="bg-slate-500 hover:bg-slate-600 dark:bg-slate-600 dark:hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">
                         התחל מחדש
                     </button>
-                    <button onClick={handleSave} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">
+                    <button onClick={handleSave} className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">
                         שמור תוכנית לספרייה
                     </button>
                 </div>
@@ -258,50 +272,56 @@ const PlanGenerator: React.FC<PlanGeneratorProps> = ({ exerciseLibrary, existing
 
     return (
         <div className="text-right">
-            <h2 className="text-3xl md:text-4xl font-extrabold text-white">אשף תוכניות אימון</h2>
-            <p className="text-gray-400 mb-6">ענה על מספר שאלות והאשף יבנה עבורך תוכנית אימונים מותאמת אישית מהתרגילים בספרייה.</p>
+            <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight font-rubik">אשף תוכניות אימון</h2>
+            <p className="text-slate-500 dark:text-gray-400 mb-6 mt-2 text-lg">ענה על מספר שאלות והאשף יבנה עבורך תוכנית אימונים מותאמת אישית מהתרגילים בספרייה.</p>
             
-            <div className="space-y-6 bg-slate-800/50 p-6 rounded-lg border border-slate-700">
+            <div className="space-y-6 bg-white dark:bg-slate-800/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
                  <div>
-                    <label className="block mb-3 text-lg font-medium text-gray-300">1. מהן מטרות האימון שלך? (ניתן לבחור יותר מאחת)</label>
+                    <label className="block mb-3 text-lg font-medium text-slate-800 dark:text-gray-300">1. מהן מטרות האימון שלך? (ניתן לבחור יותר מאחת)</label>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                         {goalOptions.map(opt => (
-                            <button key={opt.key} onClick={() => handleGoalToggle(opt.key)} className={`p-3 rounded-lg text-center font-semibold transition-all duration-200 ${mainGoals.includes(opt.key) ? 'bg-cyan-600 text-white ring-2 ring-cyan-400' : 'bg-slate-700 hover:bg-slate-600'}`}>
+                            <button key={opt.key} onClick={() => handleGoalToggle(opt.key)} className={`p-3 rounded-lg text-center font-semibold transition-all duration-200 ${mainGoals.includes(opt.key) ? 'bg-amber-500 text-white ring-2 ring-amber-400' : 'bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>
                                 {opt.label}
                             </button>
                         ))}
                     </div>
                 </div>
                  <div>
-                    <label htmlFor="level" className="block mb-2 text-lg font-medium text-gray-300">2. מהי רמת הניסיון שלך?</label>
-                    <select id="level" value={level} onChange={(e) => setLevel(e.target.value as Level)} className="bg-slate-700 border border-slate-600 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block w-full p-2.5">
+                    <label htmlFor="level" className="block mb-2 text-lg font-medium text-slate-800 dark:text-gray-300">2. מהי רמת הניסיון שלך?</label>
+                    <select id="level" value={level} onChange={(e) => setLevel(e.target.value as Level)} className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2.5">
                        {PLAN_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
                     </select>
                 </div>
                 <div>
-                    <label className="block mb-2 text-lg font-medium text-gray-300">3. באילו ימים תרצה להתאמן?</label>
+                    <label className="block mb-2 text-lg font-medium text-slate-800 dark:text-gray-300">3. באילו ימים תרצה להתאמן?</label>
                     <div className="grid grid-cols-3 md:grid-cols-7 gap-2">
                         {DAYS_OF_WEEK.map(day => (
-                             <button key={day} onClick={() => handleDayToggle(day)} className={`p-3 rounded-lg text-center font-semibold transition-all duration-200 ${workoutDays.includes(day) ? 'bg-cyan-600 text-white ring-2 ring-cyan-400' : 'bg-slate-700 hover:bg-slate-600'}`}>
+                             <button key={day} onClick={() => handleDayToggle(day)} className={`p-3 rounded-lg text-center font-semibold transition-all duration-200 ${workoutDays.includes(day) ? 'bg-amber-500 text-white ring-2 ring-amber-400' : 'bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>
                                 {day}
                             </button>
                         ))}
                     </div>
                 </div>
                  <div>
-                    <label className="block mb-2 text-lg font-medium text-gray-300">4. איזה ציוד זמין לך?</label>
-                     <div className="p-3 rounded-lg bg-slate-700/50 border border-slate-600 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-y-2 gap-x-4">
+                    <div className="flex justify-between items-center mb-2">
+                        <label className="block text-lg font-medium text-slate-800 dark:text-gray-300">4. איזה ציוד זמין לך?</label>
+                        <div className="flex gap-2">
+                            <button type="button" onClick={handleSelectAllEquipment} className="text-sm font-semibold text-amber-600 dark:text-amber-400 hover:underline">בחר הכל</button>
+                            <button type="button" onClick={handleClearAllEquipment} className="text-sm font-semibold text-slate-500 hover:underline">נקה הכל</button>
+                        </div>
+                    </div>
+                     <div className="p-3 rounded-lg bg-slate-100/50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-y-2 gap-x-4">
                         {availableEquipment.map(item => (
                              <div key={item} className="flex items-center p-1 rounded-md">
-                                <input type="checkbox" id={`eq-${item}`} checked={equipment.includes(item)} onChange={() => handleEquipmentToggle(item)} className="w-4 h-4 text-cyan-600 bg-gray-700 border-gray-600 rounded focus:ring-cyan-600 ring-offset-gray-800 focus:ring-2" />
-                                <label htmlFor={`eq-${item}`} className="mr-2 text-sm font-medium text-gray-300">{item}</label>
+                                <input type="checkbox" id={`eq-${item}`} checked={equipment.includes(item)} onChange={() => handleEquipmentToggle(item)} className="w-4 h-4 text-amber-600 bg-slate-100 dark:bg-gray-700 border-slate-300 dark:border-gray-600 rounded focus:ring-amber-600 ring-offset-gray-50 dark:ring-offset-gray-800 focus:ring-2" />
+                                <label htmlFor={`eq-${item}`} className="mr-2 text-sm font-medium text-slate-800 dark:text-gray-300">{item}</label>
                                 {item === 'משקולות' && equipment.includes('משקולות') && (
                                     <input
                                         type="text"
                                         value={weightDetails}
                                         onChange={(e) => setWeightDetails(e.target.value)}
                                         placeholder="ציין משקלים (לדוגמה: 2x10kg)"
-                                        className="ml-2 w-full flex-1 bg-slate-600 border border-slate-500 text-white text-xs rounded p-1"
+                                        className="ml-2 w-full flex-1 bg-slate-200 dark:bg-slate-600 border border-slate-300 dark:border-slate-500 text-slate-900 dark:text-white text-xs rounded p-1"
                                         onClick={(e) => e.stopPropagation()}
                                     />
                                 )}
@@ -312,13 +332,13 @@ const PlanGenerator: React.FC<PlanGeneratorProps> = ({ exerciseLibrary, existing
             </div>
             
             {generationError && (
-                <div className="mt-4 text-center p-3 bg-red-900/50 border border-red-700 text-red-300 rounded-lg">
+                <div className="mt-4 text-center p-3 bg-red-100 dark:bg-red-900/50 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 rounded-lg">
                     {generationError}
                 </div>
             )}
 
             <div className="mt-8 flex justify-center">
-                 <button onClick={generatePlanLogic} disabled={workoutDays.length === 0 || equipment.length === 0} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-8 rounded-lg transition-colors duration-300 flex items-center gap-2 text-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                 <button onClick={generatePlanLogic} disabled={workoutDays.length === 0 || equipment.length === 0} className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-8 rounded-lg transition-colors duration-300 flex items-center gap-2 text-lg disabled:opacity-50 disabled:cursor-not-allowed">
                     <SparklesIcon className="w-6 h-6" />
                     צור תוכנית אימונים
                 </button>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import WelcomeModal from './components/WelcomeModal';
 import WorkoutPlanner from './components/WorkoutPlanner';
@@ -13,21 +12,26 @@ import TemplateFormModal from './components/TemplateFormModal';
 import WeeklyPlanFormModal from './components/WeeklyPlanFormModal';
 import FeedbackModal from './components/FeedbackModal';
 import Login from './components/Login';
-import { INITIAL_WORKOUT_TEMPLATES, INITIAL_EXERCISE_LIBRARY, INITIAL_WEEKLY_PLANS, WORKOUT_LEVELS, PLAN_LEVELS, EXERCISE_CATEGORIES, EXERCISE_LEVELS } from './constants';
+import { EditCompletionLogModal, InWorkoutEditModal, InfoModal, OnboardingGuide } from './components/AllModals';
+import { SunIcon, MoonIcon, DumbbellIcon } from './components/icons';
+import { INITIAL_WORKOUT_TEMPLATES, INITIAL_EXERCISE_LIBRARY, INITIAL_WEEKLY_PLANS, WORKOUT_LEVELS, PLAN_LEVELS, EXERCISE_CATEGORIES, EXERCISE_LEVELS, DAYS_OF_WEEK } from './constants';
 import type { WorkoutTemplate, CompletionLog, Exercise, PlannedExercise, ID, WeeklyPlan, CompletionLogEntry, Feedback } from './types';
 
 type Tab = 'plan' | 'progress' | 'library' | 'workout';
+type InfoModalState = {
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'success' | 'error';
+};
 
-// This is your secret access key. Change it to whatever you want.
 const ACCESS_KEY = 'liorbar23';
 
-// A robust CSV/TSV parser that handles quoted fields for commas.
 const universalParseLine = (line: string, delimiter: string): string[] => {
     if (delimiter === '\t') {
         return line.split('\t').map(s => s.trim().replace(/^"|"$/g, ''));
     }
     
-    // Existing comma-parser for CSV
     const result: string[] = [];
     let current = '';
     let inQuote = false;
@@ -35,9 +39,9 @@ const universalParseLine = (line: string, delimiter: string): string[] => {
         const char = line[i];
         const nextChar = line[i+1];
         
-        if (char === '"' && inQuote && nextChar === '"') { // Handle escaped quote ""
+        if (char === '"' && inQuote && nextChar === '"') { 
             current += '"';
-            i++; // Skip next quote
+            i++; 
         } else if (char === '"') {
             inQuote = !inQuote;
         } else if (char === delimiter && !inQuote) {
@@ -51,21 +55,15 @@ const universalParseLine = (line: string, delimiter: string): string[] => {
     return result.map(s => s.replace(/^"|"$/g, ''));
 };
 
-
-const parseExercisesCSV = (csvText: string): Exercise[] => {
+const parseExercisesCSV = (csvText: string): { exercises: Exercise[] | null, error: string | null } => {
     const newExercises: Exercise[] = [];
-    // 1. Filter out empty lines first to make parsing more predictable.
     const lines = csvText.trim().split(/\r?\n/).filter(line => line.trim() !== '');
 
-    if (lines.length < 2) { // Need at least header + 1 data row
-      if (lines.length > 0) {
-        alert("קובץ ה-CSV חייב להכיל שורת כותרת ולפחות שורת נתונים אחת.");
-      }
-      return [];
+    if (lines.length < 2) { 
+      return { exercises: null, error: "קובץ ה-CSV חייב להכיל שורת כותרת ולפחות שורת נתונים אחת." };
     }
 
     let headerLine = lines[0];
-    // Remove BOM (Byte Order Mark) if present
     if (headerLine.charCodeAt(0) === 0xFEFF) {
         headerLine = headerLine.substring(1);
     }
@@ -77,11 +75,9 @@ const parseExercisesCSV = (csvText: string): Exercise[] => {
     const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
 
     if (missingHeaders.length > 0) {
-        alert(`קובץ ה-CSV/TSV אינו תקין. העמודות הבאות חסרות:\n\n- ${missingHeaders.join('\n- ')}\n\nאנא ודא שהקובץ מכיל את כל העמודות הנדרשות.`);
-        return [];
+        return { exercises: null, error: `קובץ ה-CSV/TSV אינו תקין. העמודות הבאות חסרות:\n\n- ${missingHeaders.join('\n- ')}\n\nאנא ודא שהקובץ מכיל את כל העמודות הנדרשות.`};
     }
     
-    // 2. Explicitly slice the array to process only data rows.
     const dataLines = lines.slice(1);
 
     for (const line of dataLines) {
@@ -91,10 +87,8 @@ const parseExercisesCSV = (csvText: string): Exercise[] => {
             row[header] = data[index] || '';
         });
 
-        // Basic validation to prevent creating empty exercises
         if (!row.name || !row.category || !row.level) continue;
 
-        // Type casting and validation
         const category = EXERCISE_CATEGORIES.includes(row.category as any) ? row.category : EXERCISE_CATEGORIES[0];
         const level = EXERCISE_LEVELS.includes(row.level as any) ? row.level : EXERCISE_LEVELS[0];
 
@@ -114,13 +108,51 @@ const parseExercisesCSV = (csvText: string): Exercise[] => {
         };
         newExercises.push(newExercise);
     }
-    return newExercises;
+    return { exercises: newExercises, error: null };
 };
+
+const onboardingSteps = [
+    { title: 'ברוכים הבאים!', content: 'זהו סיור מהיר שיכיר לכם את האפליקציה. בכל שלב, נסביר על חלק אחר ונעביר אתכם אליו.' },
+    { title: 'תוכנית אימונים', content: 'זהו דף הבית שלכם. כאן תראו את תוכנית האימונים השבועית שלכם ותוכלו להתחיל אימון.', targetId: 'onboarding-target-plan', tab: 'plan' },
+    { title: 'ספרייה ועריכה', content: 'כאן נמצא כל המידע שלכם: תרגילים, תבניות אימון, תוכניות שבועיות ואשף ליצירת תוכניות אוטומטיות.', targetId: 'onboarding-target-library', tab: 'library' },
+    { title: 'מעקב התקדמות', content: 'כל אימון שתשלימו יתועד כאן. תוכלו לראות ניתוח של הביצועים שלכם, להוסיף משוב ולייצא את ההיסטוריה.', targetId: 'onboarding-target-progress', tab: 'progress' },
+    { title: 'מוכנים להתחיל!', content: 'זהו! אתם מוכנים להתחיל להתאמן. זכרו, עקביות היא המפתח. בהצלחה!' }
+];
 
 
 function App() {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) {
+        return localStorage.getItem('theme') as 'light' | 'dark';
+    }
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        return 'dark';
+    }
+    return 'light';
+  });
+  
+  const handleThemeToggle = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+  };
+  
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [showWelcomeModal, setShowWelcomeModal] = useState<boolean>(true);
+  
+  const [onboardingCompleted, setOnboardingCompleted] = useState(() => localStorage.getItem('onboardingCompleted') === 'true');
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(1);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(() => localStorage.getItem('welcomeModalSeen') !== 'true');
+  
   const [activeTab, setActiveTab] = useState<Tab>('plan');
   
   const [exerciseLibrary, setExerciseLibrary] = useState<Exercise[]>(() => {
@@ -140,60 +172,108 @@ function App() {
     return savedPlans[0]?.id || '';
   });
 
-
   const [completionLog, setCompletionLog] = useState<CompletionLog>(() => {
     try { const saved = localStorage.getItem('workoutCompletionLog'); const log = saved ? JSON.parse(saved) : {}; return typeof log === 'object' && log !== null ? log : {}; } catch { return {}; }
+  });
+  
+  // FIX: Create a state for categories to allow dynamic updates.
+  const [allCategories, setAllCategories] = useState<readonly string[]>(() => {
+    try { const saved = localStorage.getItem('allCategories'); return saved ? JSON.parse(saved) : EXERCISE_CATEGORIES; } catch { return EXERCISE_CATEGORIES; }
   });
 
   // Modals state
   const [isAddExerciseModalOpen, setIsAddExerciseModalOpen] = useState(false);
   const [exerciseToAdd, setExerciseToAdd] = useState<Exercise | null>(null);
-  const [templateToAddTo, setTemplateToAddTo] = useState<ID | null>(null);
-
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [exerciseToEdit, setExerciseToEdit] = useState<{workoutId: ID, exercise: PlannedExercise} | null>(null);
-  
   const [isExerciseFormModalOpen, setIsExerciseFormModalOpen] = useState(false);
   const [exerciseToEditInLibrary, setExerciseToEditInLibrary] = useState<Exercise | null>(null);
-  
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [idToDelete, setIdToDelete] = useState<{type: 'exercise' | 'template' | 'plan', id: ID} | null>(null);
-  
+  // FIX: Update the state type to accommodate the new category confirmation flow.
+  const [itemToDelete, setItemToDelete] = useState<{type: 'exercise' | 'template' | 'plan' | 'bulk-exercise' | 'new-category', id?: ID, ids?: ID[], data?: any} | null>(null);
   const [isTemplateFormModalOpen, setIsTemplateFormModalOpen] = useState(false);
   const [templateToEdit, setTemplateToEdit] = useState<WorkoutTemplate | null>(null);
-  
   const [isWeeklyPlanFormModalOpen, setIsWeeklyPlanFormModalOpen] = useState(false);
   const [planToEdit, setPlanToEdit] = useState<WeeklyPlan | null>(null);
-
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [feedbackLogDate, setFeedbackLogDate] = useState<string | null>(null);
+  const [isEditLogModalOpen, setIsEditLogModalOpen] = useState(false);
+  const [logEntryToEdit, setLogEntryToEdit] = useState<{ date: string, entry: CompletionLogEntry } | null>(null);
+  const [isInWorkoutEditModalOpen, setIsInWorkoutEditModalOpen] = useState(false);
+  const [inWorkoutEditData, setInWorkoutEditData] = useState<{ exercise: PlannedExercise; onSave: (updatedExercise: PlannedExercise) => void; } | null>(null);
+  const [infoModalState, setInfoModalState] = useState<InfoModalState>({ isOpen: false, title: '', message: '', type: 'success' });
+
 
   useEffect(() => {
-    // Check for authentication status when the app loads
     const storedAuth = sessionStorage.getItem('isAuthenticated');
     if (storedAuth === 'true') {
         setIsAuthenticated(true);
+        if (!onboardingCompleted) {
+            setShowOnboarding(true);
+            setOnboardingStep(1);
+        }
     }
-  }, []);
+  }, [onboardingCompleted]);
 
   useEffect(() => { localStorage.setItem('exerciseLibrary', JSON.stringify(exerciseLibrary)); }, [exerciseLibrary]);
   useEffect(() => { localStorage.setItem('workoutTemplates', JSON.stringify(workoutTemplates)); }, [workoutTemplates]);
   useEffect(() => { localStorage.setItem('weeklyPlans', JSON.stringify(weeklyPlans)); }, [weeklyPlans]);
   useEffect(() => { localStorage.setItem('workoutCompletionLog', JSON.stringify(completionLog)); }, [completionLog]);
+  // FIX: Add a useEffect to persist the updated categories list to localStorage.
+  useEffect(() => { localStorage.setItem('allCategories', JSON.stringify(allCategories)); }, [allCategories]);
 
-  // --- Auth Handler ---
   const handleLogin = (key: string): boolean => {
     if (key === ACCESS_KEY) {
         sessionStorage.setItem('isAuthenticated', 'true');
         setIsAuthenticated(true);
+        if (!onboardingCompleted) {
+            setShowOnboarding(true);
+            setOnboardingStep(1);
+        }
         return true;
     }
     return false;
   };
+  
+  const handleWelcomeClose = () => {
+    setShowWelcomeModal(false);
+    localStorage.setItem('welcomeModalSeen', 'true');
+    setActiveTab('plan');
+  }
 
-  // --- Completion Log Handlers ---
+  const handleOnboardingFinish = () => {
+    setShowOnboarding(false);
+    setOnboardingCompleted(true);
+    localStorage.setItem('onboardingCompleted', 'true');
+    setShowWelcomeModal(true);
+  };
+
+  const handleOnboardingNext = () => {
+    const nextStepIndex = onboardingStep; 
+    if (nextStepIndex >= onboardingSteps.length) {
+        handleOnboardingFinish();
+        return;
+    }
+    const nextStepData = onboardingSteps[nextStepIndex];
+    if (nextStepData.tab) {
+        setActiveTab(nextStepData.tab as Tab);
+    }
+    setOnboardingStep(prev => prev + 1);
+  };
+
+  const handleOpenAddExerciseModal = (exercise: Exercise) => {
+    setExerciseToAdd(exercise);
+    setIsAddExerciseModalOpen(true);
+  };
+
   const handleUpdateCompletion = (date: string, logEntry: CompletionLogEntry) => {
     setCompletionLog(prev => ({ ...prev, [date]: logEntry }));
+  };
+  
+  const handleUpdateCompletionLogEntry = (date: string, updatedEntry: CompletionLogEntry) => {
+    handleUpdateCompletion(date, updatedEntry);
+    setIsEditLogModalOpen(false);
+    setLogEntryToEdit(null);
   };
 
   const handleRemoveCompletion = (date: string) => {
@@ -204,10 +284,45 @@ function App() {
     });
   };
 
-  // --- Feedback Handlers ---
+  const handleMarkDayComplete = (date: string, workout: WorkoutTemplate) => {
+    const activePlan = weeklyPlans.find(p => p.id === activeWeeklyPlanId);
+    if (!activePlan) return;
+
+    const dayIndex = new Date(date).getUTCDay();
+    const dayOfWeek = DAYS_OF_WEEK[dayIndex];
+
+    const completedExercisesMap: { [planInstanceId: string]: PlannedExercise } = {};
+    workout.exercises.forEach(ex => {
+        completedExercisesMap[ex.planInstanceId] = ex;
+    });
+
+    const newLogEntry: CompletionLogEntry = {
+        weeklyPlanName: activePlan.name,
+        dayOfWeek: dayOfWeek,
+        workoutTemplate: workout,
+        completedExercises: completedExercisesMap,
+    };
+
+    handleUpdateCompletion(date, newLogEntry);
+    handleOpenFeedbackModal(date);
+  };
+  
+  const handleOpenInWorkoutEditModal = (exercise: PlannedExercise, onSave: (updatedExercise: PlannedExercise) => void) => {
+    setInWorkoutEditData({ exercise, onSave });
+    setIsInWorkoutEditModalOpen(true);
+  };
+
   const handleOpenFeedbackModal = (date: string) => {
     setFeedbackLogDate(date);
     setIsFeedbackModalOpen(true);
+  };
+  
+  const handleOpenEditLogModal = (date: string) => {
+    const entry = completionLog[date];
+    if (entry) {
+        setLogEntryToEdit({ date, entry });
+        setIsEditLogModalOpen(true);
+    }
   };
   
   const handleSaveFeedback = (feedback: Feedback) => {
@@ -225,71 +340,97 @@ function App() {
   };
   
   const handleExportHistory = () => {
-        const headers = ['date', 'dayOfWeek', 'weeklyPlanName', 'workoutTitle', 'completedExercisesDetails', 'feeling', 'painLevel', 'painLocation', 'difficulty', 'notes'];
+    const headers = ['date', 'dayOfWeek', 'weeklyPlanName', 'workoutTitle', 'workoutAnalysis', 'feeling', 'painLevel', 'painLocation', 'difficulty', 'notes'];
+    const feelingMap = { excellent: 'מצוינת', good: 'טובה', ok: 'בסדר', tired: 'עייפות' };
+    const difficultyMap = { easy: 'קל מדי', 'just_right': 'בול', hard: 'קשה מדי' };
+    
+    const escapeCSV = (field: any): string => {
+        if (field === null || field === undefined) return '';
+        const str = String(field);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+    };
+
+    const csvRows = [headers.join(',')];
+    
+    Object.entries(completionLog).sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime()).forEach(([date, entry]) => {
+        let analysis = '';
+        const modifiedParts: string[] = [];
+        const skippedParts: string[] = [];
         
-        const feelingMap = { excellent: 'מצוינת', good: 'טובה', ok: 'בסדר', tired: 'עייפות' };
-        const difficultyMap = { easy: 'קל מדי', 'just_right': 'בול', hard: 'קשה מדי' };
+        const originalTemplate = workoutTemplates.find(t => t.id === entry.workoutTemplate.id);
         
-        const escapeCSV = (field: any): string => {
-            if (field === null || field === undefined) return '';
-            const str = String(field);
-            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-                return `"${str.replace(/"/g, '""')}"`;
+        if (originalTemplate) {
+            originalTemplate.exercises.forEach(originalEx => {
+                const performedEx = entry.completedExercises[originalEx.planInstanceId];
+                if (!performedEx) {
+                    skippedParts.push(originalEx.name);
+                } else {
+                    const originalDetails = `${originalEx.sets || 1}x${originalEx.reps || originalEx.duration || ''}`;
+                    const performedDetails = `${performedEx.sets || 1}x${performedEx.reps || performedEx.duration || ''}`;
+                    
+                    if (originalEx.sets !== performedEx.sets || originalEx.reps !== performedEx.reps || originalEx.duration !== performedEx.duration) {
+                        const plannedStr = [ originalEx.sets ? `${originalEx.sets} סטים` : '', originalEx.reps ? `x ${originalEx.reps}` : '', originalEx.duration ? `${originalEx.duration} שניות` : '' ].filter(Boolean).join(' ');
+                        const performedStr = [ performedEx.sets ? `${performedEx.sets} סטים` : '', performedEx.reps ? `x ${performedEx.reps}` : '', performedEx.duration ? `${performedEx.duration} שניות` : '' ].filter(Boolean).join(' ');
+                        modifiedParts.push(`${originalEx.name} (תוכנן: ${plannedStr}, בוצע: ${performedStr})`);
+                    }
+                }
+            });
+        }
+
+        if (modifiedParts.length === 0 && skippedParts.length === 0) {
+            analysis = "המתאמן ביצע את כל התרגילים לפי התוכנית המקורית.";
+        } else {
+            const analysisSections = [];
+            if (modifiedParts.length > 0) {
+                analysisSections.push(`שינויים: ${modifiedParts.join('; ')}.`);
             }
-            return str;
+            if (skippedParts.length > 0) {
+                analysisSections.push(`תרגילים שדולגו: ${skippedParts.join(', ')}.`);
+            }
+            analysis = analysisSections.join(' ');
+        }
+        
+        const rowData = {
+            date: date,
+            dayOfWeek: entry.dayOfWeek,
+            weeklyPlanName: entry.weeklyPlanName,
+            workoutTitle: entry.workoutTemplate.title,
+            workoutAnalysis: analysis,
+            feeling: entry.feedback?.feeling ? feelingMap[entry.feedback.feeling] : '',
+            painLevel: entry.feedback?.painLevel ?? '',
+            painLocation: entry.feedback?.painLocation ?? '',
+            difficulty: entry.feedback?.difficulty ? difficultyMap[entry.feedback.difficulty] : '',
+            notes: entry.feedback?.notes ?? ''
         };
+        const row = headers.map(header => escapeCSV(rowData[header as keyof typeof rowData]));
+        csvRows.push(row.join(','));
+    });
 
-        const csvRows = [headers.join(',')];
-
-        Object.entries(completionLog).sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime()).forEach(([date, entry]) => {
-            const exercisesDetails = Object.values(entry.completedExercises).map(ex => {
-                 const setsRepsString = [
-                    ex.sets ? `${ex.sets} סטים` : '',
-                    ex.reps ? `x ${ex.reps}` : '',
-                    ex.duration ? `${ex.duration} שניות` : '',
-                ].filter(Boolean).join(' ');
-                return `${ex.name} (${setsRepsString})`;
-            }).join('\n');
-
-            const rowData = {
-                date: date,
-                dayOfWeek: entry.dayOfWeek,
-                weeklyPlanName: entry.weeklyPlanName,
-                workoutTitle: entry.workoutTemplate.title,
-                completedExercisesDetails: exercisesDetails,
-                feeling: entry.feedback?.feeling ? feelingMap[entry.feedback.feeling] : '',
-                painLevel: entry.feedback?.painLevel ?? '',
-                painLocation: entry.feedback?.painLocation ?? '',
-                difficulty: entry.feedback?.difficulty ? difficultyMap[entry.feedback.difficulty] : '',
-                notes: entry.feedback?.notes ?? ''
-            };
-            const row = headers.map(header => escapeCSV(rowData[header as keyof typeof rowData]));
-            csvRows.push(row.join(','));
-        });
-
-        const csvString = csvRows.join('\r\n');
-        const blob = new Blob(['\uFEFF' + csvString], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', 'workout_history.csv');
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    const csvString = csvRows.join('\r\n');
+    const blob = new Blob(['\uFEFF' + csvString], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'workout_history_analysis.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    setInfoModalState({ isOpen: true, title: 'היסטוריה יוצאה', message: 'קובץ ה-CSV עם ניתוח היסטוריית האימונים שלך נוצר בהצלחה.', type: 'success' });
   };
 
-  // --- Weekly Plan Schedule Handler ---
   const handleUpdateWeeklyPlanSchedule = (planId: ID, day: string, templateId: ID | null) => {
       setWeeklyPlans(prev => prev.map(plan => 
           plan.id === planId
-          // FIX: Corrected the object structure for updating the schedule. The previous implementation had incorrect nesting which caused a TypeScript type error.
           ? { ...plan, schedule: { ...plan.schedule, [day]: templateId } }
           : plan
       ));
   };
 
-  // --- Planned Exercise Handlers (within a template) ---
   const handleOpenEditModal = (workoutId: ID, exercise: PlannedExercise) => {
     setExerciseToEdit({ workoutId, exercise });
     setIsEditModalOpen(true);
@@ -315,51 +456,84 @@ function App() {
     }));
   };
 
-  const handleAddExerciseToTemplate = (templateId: ID, exercise: Exercise) => {
-    const newPlannedExercise: PlannedExercise = {
-        ...exercise,
-        planInstanceId: crypto.randomUUID(),
-    };
-    setWorkoutTemplates(prev => prev.map(t => 
-        t.id === templateId 
-        ? { ...t, exercises: [...t.exercises, newPlannedExercise] }
-        : t
-    ));
+  const handleAddExercisesToTemplate = (templateId: ID, exercises: Exercise[]) => {
+      const newPlannedExercises: PlannedExercise[] = exercises.map(ex => ({
+          ...ex,
+          planInstanceId: crypto.randomUUID(),
+      }));
+      setWorkoutTemplates(prev => prev.map(t =>
+          t.id === templateId
+          ? { ...t, exercises: [...t.exercises, ...newPlannedExercises] }
+          : t
+      ));
   };
 
-
-  // --- Exercise Library Handlers ---
   const handleOpenExerciseForm = (exercise: Exercise | null) => {
     setExerciseToEditInLibrary(exercise);
     setIsExerciseFormModalOpen(true);
   };
 
   const handleSaveExerciseToLibrary = (exercise: Exercise) => {
-    if('id' in exercise && exercise.id) { // Edit mode
-        setExerciseLibrary(prev => prev.map(e => e.id === exercise.id ? exercise : e));
-    } else { // Add mode
-        setExerciseLibrary(prev => [...prev, { ...exercise, id: crypto.randomUUID() }]);
+    const isNewCategory = !allCategories.includes(exercise.category);
+
+    const performSave = () => {
+        if (isNewCategory) {
+            setAllCategories(prev => [...new Set([...prev, exercise.category])].sort((a,b) => a.localeCompare(b, 'he')));
+        }
+
+        if('id' in exercise && exercise.id) {
+            setExerciseLibrary(prev => prev.map(e => e.id === exercise.id ? exercise : e));
+        } else { 
+            setExerciseLibrary(prev => [...prev, { ...exercise, id: crypto.randomUUID() }]);
+        }
+        setIsExerciseFormModalOpen(false);
+        setExerciseToEditInLibrary(null);
+    };
+
+    if (isNewCategory) {
+        setItemToDelete({ type: 'new-category', data: { onConfirm: performSave, categoryName: exercise.category } });
+        setIsConfirmModalOpen(true);
+    } else {
+        performSave();
     }
-    setIsExerciseFormModalOpen(false);
-    setExerciseToEditInLibrary(null);
   };
 
+
   const handleConfirmDeleteExercise = (exerciseId: ID) => {
-    setIdToDelete({type: 'exercise', id: exerciseId});
+    setItemToDelete({type: 'exercise', id: exerciseId});
     setIsConfirmModalOpen(true);
   };
 
   const handleDeleteExerciseFromLibrary = () => {
-    if (!idToDelete || idToDelete.type !== 'exercise') return;
-    setExerciseLibrary(prev => prev.filter(e => e.id !== idToDelete.id));
-    // Also remove from all templates
+    if (!itemToDelete || itemToDelete.type !== 'exercise' || !itemToDelete.id) return;
+    setExerciseLibrary(prev => prev.filter(e => e.id !== itemToDelete.id));
     setWorkoutTemplates(prev => prev.map(t => ({
       ...t,
-      exercises: t.exercises.filter(ex => ex.id !== idToDelete.id)
+      exercises: t.exercises.filter(ex => ex.id !== itemToDelete.id)
     })));
     setIsConfirmModalOpen(false);
-    setIdToDelete(null);
+    setItemToDelete(null);
   };
+  
+  const handleConfirmBulkDeleteExercises = (exerciseIds: ID[]) => {
+    setItemToDelete({type: 'bulk-exercise', ids: exerciseIds});
+    setIsConfirmModalOpen(true);
+  };
+  
+  const handleBulkDeleteExercises = () => {
+    if (!itemToDelete || itemToDelete.type !== 'bulk-exercise' || !itemToDelete.ids) return;
+    const idsToDelete = new Set(itemToDelete.ids);
+    
+    setExerciseLibrary(prev => prev.filter(e => !idsToDelete.has(e.id)));
+    setWorkoutTemplates(prev => prev.map(t => ({
+      ...t,
+      exercises: t.exercises.filter(ex => !idsToDelete.has(ex.id))
+    })));
+    
+    setIsConfirmModalOpen(false);
+    setItemToDelete(null);
+  };
+
 
   const handleDuplicateExercise = (exercise: Exercise) => {
     const newExercise = { ...exercise, name: `${exercise.name} (עותק)`, id: crypto.randomUUID() };
@@ -372,28 +546,29 @@ function App() {
         const text = e.target?.result;
         if (typeof text === 'string') {
             try {
-                const importedExercises = parseExercisesCSV(text);
-                if (importedExercises.length > 0) {
-                    setExerciseLibrary(prev => [...prev, ...importedExercises]);
-                    alert(`${importedExercises.length} תרגילים יובאו בהצלחה!`);
-                } else if (text.trim().split(/\r?\n/).length > 1) {
-                    // Alert is handled inside parseExercisesCSV for better feedback
+                const { exercises, error } = parseExercisesCSV(text);
+                if (error) {
+                    setInfoModalState({ isOpen: true, title: 'שגיאה בייבוא', message: error, type: 'error' });
+                    return;
+                }
+                if (exercises && exercises.length > 0) {
+                    setExerciseLibrary(prev => [...prev, ...exercises]);
+                    setInfoModalState({ isOpen: true, title: 'ייבוא הושלם בהצלחה', message: `${exercises.length} תרגילים יובאו לספרייה שלך.`, type: 'success' });
                 }
             } catch (error) {
                 console.error("Error parsing CSV:", error);
-                alert("אירעה שגיאה בעיבוד קובץ ה-CSV.");
+                setInfoModalState({ isOpen: true, title: 'שגיאה בייבוא', message: 'אירעה שגיאה בלתי צפויה בעיבוד קובץ ה-CSV.', type: 'error' });
             }
         }
     };
     reader.onerror = () => {
-         alert("אירעה שגיאה בקריאת הקובץ.");
+         setInfoModalState({ isOpen: true, title: 'שגיאה בקריאת קובץ', message: 'אירעה שגיאה בקריאת הקובץ.', type: 'error' });
     };
     reader.readAsText(file, 'UTF-8');
   };
 
    const handleExportExercises = () => {
         const headers = ['id', 'name', 'equipment', 'description', 'sets', 'reps', 'duration', 'rest', 'safetyNotes', 'category', 'level', 'muscleGroups'];
-        
         const escapeCSV = (field: any): string => {
             if (field === null || field === undefined) return '';
             const str = String(field);
@@ -402,15 +577,12 @@ function App() {
             }
             return str;
         };
-
         const csvRows = [headers.join(',')];
-
         exerciseLibrary.forEach(ex => {
             const rowData = { ...ex, muscleGroups: ex.muscleGroups.join(', ') };
             const row = headers.map(header => escapeCSV(rowData[header as keyof typeof rowData]));
             csvRows.push(row.join(','));
         });
-
         const csvString = csvRows.join('\r\n');
         const blob = new Blob(['\uFEFF' + csvString], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -421,18 +593,18 @@ function App() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        setInfoModalState({ isOpen: true, title: 'ספרייה יוצאה', message: 'ספריית התרגילים שלך יוצאה בהצלחה לקובץ CSV.', type: 'success' });
     };
 
-  // --- Workout Template Handlers ---
    const handleOpenTemplateForm = (template: WorkoutTemplate | null) => {
         setTemplateToEdit(template);
         setIsTemplateFormModalOpen(true);
     };
 
     const handleSaveTemplate = (data: { title: string; level: typeof WORKOUT_LEVELS[number]; tags: string[] }) => {
-        if (templateToEdit) { // Edit
+        if (templateToEdit) { 
             setWorkoutTemplates(prev => prev.map(t => t.id === templateToEdit.id ? { ...t, ...data } : t));
-        } else { // Create
+        } else {
             const newTemplate: WorkoutTemplate = {
                 id: crypto.randomUUID(),
                 title: data.title,
@@ -449,42 +621,40 @@ function App() {
     };
 
     const handleConfirmDeleteTemplate = (templateId: ID) => {
-        setIdToDelete({type: 'template', id: templateId});
+        setItemToDelete({type: 'template', id: templateId});
         setIsConfirmModalOpen(true);
     };
     
     const handleDeleteTemplate = () => {
-        if (!idToDelete || idToDelete.type !== 'template') return;
-        setWorkoutTemplates(prev => prev.filter(t => t.id !== idToDelete.id));
-        // Also remove from any weekly plans
+        if (!itemToDelete || itemToDelete.type !== 'template' || !itemToDelete.id) return;
+        setWorkoutTemplates(prev => prev.filter(t => t.id !== itemToDelete.id));
         setWeeklyPlans(prev => prev.map(p => {
           const newSchedule = { ...p.schedule };
           Object.keys(newSchedule).forEach(day => {
-            if (newSchedule[day] === idToDelete.id) {
+            if (newSchedule[day] === itemToDelete.id) {
               newSchedule[day] = null;
             }
           });
           return { ...p, schedule: newSchedule };
         }));
         setIsConfirmModalOpen(false);
-        setIdToDelete(null);
+        setItemToDelete(null);
     };
     
-  // --- Weekly Plan Handlers ---
     const handleOpenWeeklyPlanForm = (plan: WeeklyPlan | null) => {
         setPlanToEdit(plan);
         setIsWeeklyPlanFormModalOpen(true);
     };
 
     const handleSaveWeeklyPlan = (data: { name: string; level: typeof PLAN_LEVELS[number] }) => {
-        if (planToEdit) { // Edit mode
+        if (planToEdit) {
             setWeeklyPlans(prev => prev.map(p => p.id === planToEdit.id ? { ...p, ...data } : p));
-        } else { // Create mode
+        } else { 
             const newPlan: WeeklyPlan = {
                 id: crypto.randomUUID(),
                 name: data.name,
                 level: data.level,
-                schedule: {}, // Empty schedule
+                schedule: {},
             };
             setWeeklyPlans(prev => [...prev, newPlan]);
         }
@@ -493,28 +663,25 @@ function App() {
     };
 
     const handleConfirmDeleteWeeklyPlan = (planId: ID) => {
-        setIdToDelete({type: 'plan', id: planId});
+        setItemToDelete({type: 'plan', id: planId});
         setIsConfirmModalOpen(true);
     };
 
     const handleDeleteWeeklyPlan = () => {
-        if (!idToDelete || idToDelete.type !== 'plan') return;
-        
-        const remainingPlans = weeklyPlans.filter(p => p.id !== idToDelete.id);
+        if (!itemToDelete || itemToDelete.type !== 'plan' || !itemToDelete.id) return;
+        const remainingPlans = weeklyPlans.filter(p => p.id !== itemToDelete.id);
         setWeeklyPlans(remainingPlans);
-
-        if (activeWeeklyPlanId === idToDelete.id) {
+        if (activeWeeklyPlanId === itemToDelete.id) {
             setActiveWeeklyPlanId(remainingPlans[0]?.id || '');
         }
         setIsConfirmModalOpen(false);
-        setIdToDelete(null);
+        setItemToDelete(null);
     };
 
-    // --- Plan Generator Handler ---
     const handleSaveGeneratedPlan = (data: { newTemplates: WorkoutTemplate[], newPlan: WeeklyPlan }) => {
         setWorkoutTemplates(prev => [...prev, ...data.newTemplates]);
         setWeeklyPlans(prev => [...prev, data.newPlan]);
-        alert('התוכנית והתבניות החדשות נשמרו בהצלחה בספרייה!');
+        setInfoModalState({ isOpen: true, title: 'התוכנית נשמרה!', message: 'התוכנית והתבניות החדשות נשמרו בהצלחה בספרייה שלך.', type: 'success' });
         setActiveWeeklyPlanId(data.newPlan.id);
         setActiveTab('plan');
     };
@@ -528,17 +695,18 @@ function App() {
             activeWeeklyPlanId={activeWeeklyPlanId}
             onSetActiveWeeklyPlanId={setActiveWeeklyPlanId}
             completionLog={completionLog}
-            onUpdateCompletion={handleUpdateCompletion}
-            onRemoveCompletion={handleRemoveCompletion}
-            onEditExercise={handleOpenEditModal}
-            onRemoveExercise={handleRemoveExerciseFromTemplate}
-            onUpdateSchedule={handleUpdateWeeklyPlanSchedule}
+            onMarkDayComplete={handleMarkDayComplete}
+            onOpenFeedbackModal={handleOpenFeedbackModal}
+            onOpenEditLogModal={handleOpenEditLogModal}
+            setActiveTab={setActiveTab}
         />;
       case 'progress':
         return <ProgressTracker 
             completionLog={completionLog}
+            workoutTemplates={workoutTemplates}
             onRemoveCompletion={handleRemoveCompletion}
             onOpenFeedbackModal={handleOpenFeedbackModal}
+            onOpenEditLogModal={handleOpenEditLogModal}
             onExportHistory={handleExportHistory}
         />;
       case 'library':
@@ -546,44 +714,50 @@ function App() {
             exerciseLibrary={exerciseLibrary}
             workoutTemplates={workoutTemplates}
             weeklyPlans={weeklyPlans}
-            onAddExerciseToPlan={() => {}} // Deprecated - remove?
+            // FIX: Pass the dynamic categories list to the library component.
+            allCategories={allCategories}
+            onAddExerciseToPlan={handleOpenAddExerciseModal}
+            onAddExercisesToTemplate={handleAddExercisesToTemplate}
             onAddNewExercise={() => handleOpenExerciseForm(null)}
             onEditExercise={(ex) => handleOpenExerciseForm(ex)}
             onDeleteExercise={handleConfirmDeleteExercise}
             onDuplicateExercise={handleDuplicateExercise}
             onImportExercises={handleImportExercises}
             onExportExercises={handleExportExercises}
-            // Template handlers
-            onAddExerciseToTemplate={handleAddExerciseToTemplate}
             onRemoveExerciseFromTemplate={handleRemoveExerciseFromTemplate}
+            onEditPlannedExercise={handleOpenEditModal}
             onCreateTemplate={() => handleOpenTemplateForm(null)}
             onEditTemplate={handleOpenTemplateForm}
             onDeleteTemplate={handleConfirmDeleteTemplate}
-             // Plan handlers
             onCreateWeeklyPlan={() => handleOpenWeeklyPlanForm(null)}
             onEditWeeklyPlan={handleOpenWeeklyPlanForm}
             onDeleteWeeklyPlan={handleConfirmDeleteWeeklyPlan}
             onUpdateWeeklyPlanSchedule={handleUpdateWeeklyPlanSchedule}
             onSaveGeneratedPlan={handleSaveGeneratedPlan}
+            onConfirmBulkDelete={handleConfirmBulkDeleteExercises}
         />;
       case 'workout':
         return <WorkoutSessionPage 
             weeklyPlans={weeklyPlans}
             workoutTemplates={workoutTemplates}
             activeWeeklyPlanId={activeWeeklyPlanId}
+            onUpdateCompletion={handleUpdateCompletion}
+            onOpenFeedbackModal={handleOpenFeedbackModal}
+            onOpenInWorkoutEditModal={handleOpenInWorkoutEditModal}
         />;
       default:
         return null;
     }
   };
 
-  const TabButton: React.FC<{tabName: Tab, label: string}> = ({tabName, label}) => (
+  const TabButton: React.FC<{tabName: Tab, label: string, id?: string}> = ({tabName, label, id}) => (
     <button
+        id={id}
         onClick={() => setActiveTab(tabName)}
-        className={`px-3 py-2 md:px-5 md:py-3 text-sm md:text-base font-medium rounded-md transition-colors duration-200 ${
+        className={`font-rubik px-3 py-2 md:px-5 md:py-3 text-xl md:text-2xl font-bold rounded-lg transition-all duration-300 ${
             activeTab === tabName
-                ? 'bg-cyan-600 text-white'
-                : 'text-gray-300 hover:bg-slate-700 hover:text-white'
+                ? 'bg-amber-500 text-white shadow-md'
+                : 'text-slate-600 dark:text-gray-300 hover:bg-slate-200/70 dark:hover:bg-slate-700/70'
         }`}
     >
         {label}
@@ -595,16 +769,28 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-gray-200 overflow-x-hidden">
-      {showWelcomeModal && <WelcomeModal onClose={() => setShowWelcomeModal(false)} />}
+    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-gray-200">
+      {showOnboarding && (
+        <OnboardingGuide
+            steps={onboardingSteps}
+            step={onboardingStep}
+            onNext={handleOnboardingNext}
+            onFinish={handleOnboardingFinish}
+        />
+      )}
       
+      { !showOnboarding && showWelcomeModal && <WelcomeModal onClose={handleWelcomeClose} />}
+      
+
       {isAddExerciseModalOpen && exerciseToAdd && (
         <AddExerciseModal
             exercise={exerciseToAdd}
             workoutTemplates={workoutTemplates}
             onClose={() => setIsAddExerciseModalOpen(false)}
             onConfirm={(workoutId) => {
-              handleAddExerciseToTemplate(workoutId, exerciseToAdd);
+              if (exerciseToAdd) {
+                handleAddExercisesToTemplate(workoutId, [exerciseToAdd]);
+              }
               setIsAddExerciseModalOpen(false);
             }}
         />
@@ -625,6 +811,8 @@ function App() {
             onClose={() => { setIsExerciseFormModalOpen(false); setExerciseToEditInLibrary(null); }}
             onSave={handleSaveExerciseToLibrary}
             initialData={exerciseToEditInLibrary}
+            // FIX: Pass the dynamic categories list to the form modal.
+            allCategories={allCategories}
         />
       )}
       
@@ -646,27 +834,35 @@ function App() {
         />
        )}
 
-      {isConfirmModalOpen && idToDelete && (
+      {isConfirmModalOpen && itemToDelete && (
         <ConfirmationModal
             isOpen={isConfirmModalOpen}
-            onClose={() => setIsConfirmModalOpen(false)}
-            onConfirm={
-                idToDelete.type === 'exercise' ? handleDeleteExerciseFromLibrary : 
-                idToDelete.type === 'template' ? handleDeleteTemplate :
-                handleDeleteWeeklyPlan
-            }
-            title={
-                idToDelete.type === 'exercise' ? "אישור מחיקת תרגיל" : 
-                idToDelete.type === 'template' ? "אישור מחיקת תבנית" :
-                "אישור מחיקת תוכנית שבועית"
-            }
-            message={
-                idToDelete.type === 'exercise' 
-                ? "האם אתה בטוח שברצונך למחוק תרגיל זה מהספרייה? הוא יוסר גם מכל תבניות האימון." 
-                : idToDelete.type === 'template'
-                ? "האם אתה בטוח שברצונך למחוק תבנית זו? היא תוסר מכל שבועות האימונים."
-                : "האם אתה בטוח שברצונך למחוק תוכנית שבועית זו? לא ניתן יהיה לבחור אותה יותר בדף הראשי."
-            }
+            onClose={() => { setIsConfirmModalOpen(false); setItemToDelete(null); }}
+            onConfirm={() => {
+                switch (itemToDelete.type) {
+                    case 'exercise':
+                        handleDeleteExerciseFromLibrary();
+                        break;
+                    case 'template':
+                        handleDeleteTemplate();
+                        break;
+                    case 'plan':
+                        handleDeleteWeeklyPlan();
+                        break;
+                    case 'bulk-exercise':
+                        handleBulkDeleteExercises();
+                        break;
+                    // FIX: Handle the new category confirmation action.
+                    case 'new-category':
+                        itemToDelete.data.onConfirm();
+                        break;
+                }
+                // FIX: Close the modal after any confirmation.
+                setIsConfirmModalOpen(false);
+                setItemToDelete(null);
+            }}
+            // FIX: Pass the item to delete to the modal to generate content dynamically.
+            item={itemToDelete}
         />
       )}
       
@@ -679,17 +875,55 @@ function App() {
         />
       )}
 
-      <header className="bg-slate-800/80 backdrop-blur-sm sticky top-0 z-40 shadow-md">
-        <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {isEditLogModalOpen && logEntryToEdit && (
+        <EditCompletionLogModal
+            isOpen={isEditLogModalOpen}
+            onClose={() => setIsEditLogModalOpen(false)}
+            onSave={handleUpdateCompletionLogEntry}
+            logEntryData={logEntryToEdit}
+        />
+      )}
+      
+      {isInWorkoutEditModalOpen && inWorkoutEditData && (
+        <InWorkoutEditModal
+            isOpen={isInWorkoutEditModalOpen}
+            onClose={() => setIsInWorkoutEditModalOpen(false)}
+            exerciseData={inWorkoutEditData.exercise}
+            onSave={(updatedExercise) => {
+                inWorkoutEditData.onSave(updatedExercise);
+                setIsInWorkoutEditModalOpen(false);
+            }}
+        />
+      )}
+
+      <InfoModal 
+        isOpen={infoModalState.isOpen}
+        onClose={() => setInfoModalState(prev => ({...prev, isOpen: false}))}
+        title={infoModalState.title}
+        message={infoModalState.message}
+        type={infoModalState.type}
+      />
+
+
+      <header className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm sticky top-0 z-40 shadow-sm border-b border-slate-200 dark:border-slate-700">
+        <nav className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col md:flex-row items-center justify-between py-4 md:py-0 md:h-20">
-                <div className="flex-shrink-0 mb-4 md:mb-0">
-                    <h1 className="text-xl md:text-2xl font-bold text-white">תוכנית אימונים אישית</h1>
+                <div className="flex-shrink-0 mb-4 md:mb-0 flex items-center gap-3">
+                    <DumbbellIcon className="w-8 h-8 text-amber-500" />
+                    <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white font-rubik">תוכנית אימונים אישית</h1>
                 </div>
                 <div className="flex items-center justify-center flex-wrap gap-2">
-                    <TabButton tabName="plan" label="תוכנית אימונים" />
-                    <TabButton tabName="progress" label="מעקב התקדמות" />
-                    <TabButton tabName="library" label="ספרייה ועריכה" />
+                    <TabButton tabName="plan" label="תוכנית אימונים" id="onboarding-target-plan" />
+                    <TabButton tabName="progress" label="מעקב התקדמות" id="onboarding-target-progress" />
+                    <TabButton tabName="library" label="ספרייה ועריכה" id="onboarding-target-library" />
                     <TabButton tabName="workout" label="אימון" />
+                     <button
+                        onClick={handleThemeToggle}
+                        className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                        aria-label="Toggle theme"
+                    >
+                        {theme === 'light' ? <MoonIcon className="w-6 h-6" /> : <SunIcon className="w-6 h-6" />}
+                    </button>
                 </div>
             </div>
         </nav>
@@ -699,8 +933,8 @@ function App() {
         {renderContent()}
       </main>
 
-      <footer className="bg-slate-800 text-center py-4 mt-10">
-        <p className="text-sm text-gray-500">נבנה עבורך כדי שתגיע ליעדים שלך. בהצלחה!</p>
+      <footer className="bg-white dark:bg-slate-800 text-center py-4 mt-10 border-t border-slate-200 dark:border-slate-700">
+        <p className="text-sm text-slate-500 dark:text-gray-500">נבנה עבורך כדי שתגיע ליעדים שלך. בהצלחה!</p>
       </footer>
     </div>
   );

@@ -43,11 +43,11 @@ const WeeklyPlanFormModal: React.FC<WeeklyPlanFormModalProps> = ({ isOpen, onClo
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4" onClick={onClose}>
-            <div className="bg-slate-800 rounded-lg shadow-2xl p-6 md:p-8 max-w-md w-full text-right border border-cyan-500" onClick={e => e.stopPropagation()}>
-                <h2 className="text-2xl font-bold mb-6 text-cyan-400">{isEditMode ? 'עריכת תוכנית' : 'יצירת תוכנית שבועית חדשה'}</h2>
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl p-6 md:p-8 max-w-md w-full text-right border border-amber-300 dark:border-amber-500" onClick={e => e.stopPropagation()}>
+                <h2 className="text-2xl font-bold mb-6 text-amber-600 dark:text-amber-400">{isEditMode ? 'עריכת תוכנית' : 'יצירת תוכנית שבועית חדשה'}</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label htmlFor="name" className="block mb-2 text-sm font-medium text-gray-300">שם התוכנית</label>
+                        <label htmlFor="name" className="block mb-2 text-sm font-medium text-slate-700 dark:text-gray-300">שם התוכנית</label>
                         <input
                             type="text"
                             id="name"
@@ -55,27 +55,27 @@ const WeeklyPlanFormModal: React.FC<WeeklyPlanFormModalProps> = ({ isOpen, onClo
                             value={formData.name}
                             onChange={handleChange}
                             required
-                            className="bg-slate-700 border border-slate-600 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block w-full p-2.5"
+                            className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2.5"
                             placeholder="לדוגמה: שבוע 5 - דגש כוח"
                         />
                     </div>
                      <div>
-                        <label htmlFor="level" className="block mb-2 text-sm font-medium text-gray-300">רמה</label>
+                        <label htmlFor="level" className="block mb-2 text-sm font-medium text-slate-700 dark:text-gray-300">רמה</label>
                         <select
                             id="level"
                             name="level"
                             value={formData.level}
                             onChange={handleChange}
-                            className="bg-slate-700 border border-slate-600 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block w-full p-2.5"
+                            className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2.5"
                         >
                             {PLAN_LEVELS.map(level => <option key={level} value={level}>{level}</option>)}
                         </select>
                     </div>
                     <div className="flex justify-end space-x-4 space-x-reverse pt-4">
-                        <button type="button" onClick={onClose} className="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">
+                        <button type="button" onClick={onClose} className="bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">
                             ביטול
                         </button>
-                        <button type="submit" className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">
+                        <button type="submit" className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">
                             {isEditMode ? 'שמור שינויים' : 'צור תוכנית'}
                         </button>
                     </div>

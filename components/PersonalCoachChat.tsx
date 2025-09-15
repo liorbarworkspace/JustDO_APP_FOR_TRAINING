@@ -54,7 +54,6 @@ Always provide clear, actionable advice. Format your responses with Markdown for
                 config: {
                     systemInstruction: systemInstruction,
                 },
-                // Pass previous messages if any, excluding the initial welcome message
                 history: messages.length > 1 ? messages.slice(1).map(m => ({
                     role: m.role,
                     parts: [{ text: m.text }]
@@ -85,7 +84,7 @@ Always provide clear, actionable advice. Format your responses with Markdown for
             const stream = await chatRef.current.sendMessageStream({ message: inputValue });
 
             let modelResponse = '';
-            setMessages(prev => [...prev, { role: 'model', text: '' }]); // Placeholder for model response
+            setMessages(prev => [...prev, { role: 'model', text: '' }]); 
 
             for await (const chunk of stream) {
                 modelResponse += chunk.text;
@@ -107,22 +106,22 @@ Always provide clear, actionable advice. Format your responses with Markdown for
 
     return (
         <div className="w-full max-w-4xl mx-auto p-4 md:p-6 flex flex-col h-[calc(100vh-200px)]">
-            <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-2 text-right">מאמן אישי AI</h2>
-            <p className="text-gray-400 mb-6 text-right">שאל את Gemini כל מה שקשור לתוכנית האימונים שלך.</p>
+            <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white mb-2 text-right tracking-tight font-rubik">מאמן אישי AI</h2>
+            <p className="text-slate-500 dark:text-gray-400 mb-6 text-right text-lg">שאל את Gemini כל מה שקשור לתוכנית האימונים שלך.</p>
             
-            <div className="flex-1 bg-slate-800/50 rounded-lg border border-slate-700 p-4 overflow-y-auto space-y-4">
+            <div className="flex-1 bg-white dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 p-4 overflow-y-auto space-y-4">
                 {messages.map((msg, index) => (
                     <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
                         {msg.role === 'model' && (
-                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cyan-500 flex items-center justify-center">
+                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center">
                                 <SparklesIcon className="w-5 h-5 text-white" />
                             </div>
                         )}
-                        <div className={`max-w-xl p-3 rounded-lg ${msg.role === 'user' ? 'bg-slate-700' : 'bg-slate-900'}`}>
-                            <p className="text-gray-200 whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                        <div className={`max-w-xl p-3 rounded-lg ${msg.role === 'user' ? 'bg-slate-200 dark:bg-slate-700' : 'bg-slate-100 dark:bg-slate-900'}`}>
+                            <p className="text-slate-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">{msg.text}</p>
                         </div>
                          {msg.role === 'user' && (
-                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center">
+                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-400 dark:bg-slate-600 flex items-center justify-center">
                                 <UserIcon className="w-5 h-5 text-white" />
                             </div>
                         )}
@@ -130,10 +129,10 @@ Always provide clear, actionable advice. Format your responses with Markdown for
                 ))}
                 {isLoading && messages[messages.length -1].role === 'user' && (
                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cyan-500 flex items-center justify-center">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center">
                            <SparklesIcon className="w-5 h-5 text-white" />
                         </div>
-                        <div className="max-w-xl p-3 rounded-lg bg-slate-900 flex items-center">
+                        <div className="max-w-xl p-3 rounded-lg bg-slate-100 dark:bg-slate-900 flex items-center">
                            <span className="animate-pulse">...מקליד</span>
                         </div>
                     </div>
@@ -150,12 +149,12 @@ Always provide clear, actionable advice. Format your responses with Markdown for
                     onChange={(e) => setInputValue(e.target.value)}
                     placeholder="שאל אותי משהו על תוכנית האימונים..."
                     disabled={isLoading}
-                    className="flex-1 bg-slate-700 border border-slate-600 text-white text-md rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-3 disabled:opacity-50"
+                    className="flex-1 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-md rounded-lg focus:ring-amber-500 focus:border-amber-500 block p-3 disabled:opacity-50"
                 />
                 <button
                     type="submit"
                     disabled={isLoading || !inputValue.trim()}
-                    className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {isLoading ? 'שולח...' : 'שלח'}
                 </button>
