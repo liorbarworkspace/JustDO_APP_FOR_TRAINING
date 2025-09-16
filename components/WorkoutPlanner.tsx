@@ -1,7 +1,65 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2Icon, MessageSquarePlusIcon, PlayIconFlipped, EditIcon, ChevronLeftIcon, ChevronRightIcon } from './icons';
+import { CheckCircle2Icon, MessageSquarePlusIcon, PlayIconFlipped, EditIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon } from './icons';
 import type { CompletionLog, WorkoutTemplate, WeeklyPlan, ID } from '../types';
 import { DAYS_OF_WEEK } from '../constants';
+
+// --- Duration Calculation Logic ---
+const SECONDS_PER_REP = 3;
+
+const parseReps = (reps?: string): number => {
+    if (!reps) return 0;
+    const repsAsString = String(reps);
+    if (repsAsString.includes('-')) {
+        const parts = repsAsString.split('-').map(s => parseInt(s.trim(), 10));
+        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+            return (parts[0] + parts[1]) / 2;
+        }
+    }
+    const singleRep = parseInt(repsAsString, 10);
+    return isNaN(singleRep) ? 0 : singleRep;
+};
+
+const parseRest = (rest?: string): number => {
+    if (!rest) return 0;
+    const match = rest.match(/(\d+)/);
+    if (match) {
+        return parseInt(match[0], 10);
+    }
+    return 0;
+};
+
+const calculateWorkoutDuration = (template: WorkoutTemplate | null): string => {
+    if (!template || !Array.isArray(template.exercises) || template.exercises.length === 0) {
+        return '';
+    }
+
+    let totalSeconds = 0;
+
+    for (const exercise of template.exercises) {
+        const sets = exercise.sets || 1;
+        const activityTimePerSet = exercise.duration || (parseReps(exercise.reps) * SECONDS_PER_REP);
+        const restTime = parseRest(exercise.rest);
+
+        if (sets > 0 && activityTimePerSet > 0) {
+            const timeForThisExercise = (sets * activityTimePerSet) + (Math.max(0, sets - 1) * restTime);
+            totalSeconds += timeForThisExercise;
+        }
+    }
+
+    if (totalSeconds === 0) {
+        return '';
+    }
+
+    const totalMinutes = Math.round(totalSeconds / 60);
+
+    if (totalMinutes < 1) {
+        return '';
+    }
+
+    return `~${totalMinutes} דק'`;
+};
+// --- End Duration Calculation Logic ---
+
 
 const categoryColorMap: { [key: string]: string } = {
   'כוח': 'bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-300',
@@ -48,6 +106,8 @@ const DailyWorkoutCard: React.FC<DailyWorkoutCardProps> = ({ day, date, workout,
         ? 'border-amber-500'
         : 'border-slate-200 dark:border-slate-700';
 
+    const durationText = calculateWorkoutDuration(workout);
+
     return (
         <div className={`${cardBaseClasses} ${cardStateClasses}`}>
             {/* Header */}
@@ -63,9 +123,19 @@ const DailyWorkoutCard: React.FC<DailyWorkoutCardProps> = ({ day, date, workout,
 
             {/* Body */}
             <div className="p-4 flex-grow flex flex-col">
-                 <h4 className={`text-xl font-bold ${workout ? (isCompleted ? 'text-green-800 dark:text-green-300' : 'text-amber-600 dark:text-amber-400') : 'text-slate-500 dark:text-gray-500'}`}>{workout ? workout.title : 'מנוחה'}</h4>
-                {workout && (
-                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                     <h4 className={`text-xl font-bold ${workout ? (isCompleted ? 'text-green-800 dark:text-green-300' : 'text-amber-600 dark:text-amber-400') : 'text-slate-500 dark:text-gray-500'}`}>
+                        {workout ? workout.title : 'מנוחה'}
+                     </h4>
+                    {durationText && (
+                        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-gray-300 px-2 py-1 rounded-full">
+                            <ClockIcon className="w-4 h-4" />
+                            <span className="text-xs font-semibold">{durationText}</span>
+                        </div>
+                    )}
+                </div>
+                {workout && Array.isArray(workout.tags) && (
+                    <div className="flex flex-wrap items-center gap-1.5 mt-3">
                         {workout.tags.map(tag => (
                             <span key={tag} className={`${getCategoryColor(tag)} text-xs font-semibold px-2 py-0.5 rounded-full`}>{tag}</span>
                         ))}

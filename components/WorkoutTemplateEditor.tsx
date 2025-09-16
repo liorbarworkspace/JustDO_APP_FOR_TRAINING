@@ -1,7 +1,80 @@
 import React, { useState, useMemo } from 'react';
 import type { Exercise, WorkoutTemplate, ID, PlannedExercise } from '../types';
-import { ChevronDownIcon, EditIcon, PlusIcon, TrashIcon } from './icons';
+import { ChevronDownIcon, EditIcon, PlusIcon, TrashIcon, ClockIcon, ChevronUpIcon } from './icons';
 import { WORKOUT_LEVELS, EXERCISE_LEVELS } from '../constants';
+
+// --- Duration Calculation Logic ---
+const SECONDS_PER_REP = 3;
+
+const parseReps = (reps?: string): number => {
+    if (!reps) return 0;
+    const repsAsString = String(reps);
+    if (repsAsString.includes('-')) {
+        const parts = repsAsString.split('-').map(s => parseInt(s.trim(), 10));
+        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+            return (parts[0] + parts[1]) / 2;
+        }
+    }
+    const singleRep = parseInt(repsAsString, 10);
+    return isNaN(singleRep) ? 0 : singleRep;
+};
+
+const parseRest = (rest?: string): number => {
+    if (!rest) return 0;
+    const match = rest.match(/(\d+)/);
+    if (match) {
+        return parseInt(match[0], 10);
+    }
+    return 0;
+};
+
+const calculateWorkoutDuration = (template: WorkoutTemplate | null): string => {
+    if (!template || !Array.isArray(template.exercises) || template.exercises.length === 0) {
+        return '';
+    }
+
+    let totalSeconds = 0;
+
+    for (const exercise of template.exercises) {
+        const sets = exercise.sets || 1;
+        const activityTimePerSet = exercise.duration || (parseReps(exercise.reps) * SECONDS_PER_REP);
+        const restTime = parseRest(exercise.rest);
+
+        if (sets > 0 && activityTimePerSet > 0) {
+            const timeForThisExercise = (sets * activityTimePerSet) + (Math.max(0, sets - 1) * restTime);
+            totalSeconds += timeForThisExercise;
+        }
+    }
+
+    if (totalSeconds === 0) {
+        return '';
+    }
+
+    const totalMinutes = Math.round(totalSeconds / 60);
+
+    if (totalMinutes < 1) {
+        return '';
+    }
+
+    return `~${totalMinutes} דק'`;
+};
+// --- End Duration Calculation Logic ---
+
+const formatDurationDisplay = (seconds: number | undefined | null): string => {
+  if (!seconds || seconds <= 0) {
+    return '';
+  }
+  if (seconds < 60) {
+    return `${seconds} שניות`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (remainingSeconds === 0) {
+    return `${minutes} דקות`;
+  }
+  return `${minutes} דקות ו-${remainingSeconds} שניות`;
+};
+
 
 type LevelFilter = typeof WORKOUT_LEVELS[number] | 'הכל';
 type TagFilter = string | 'הכל';
@@ -13,6 +86,7 @@ interface WorkoutTemplateEditorProps {
     onAddExercisesToTemplate: (templateId: ID, exercises: Exercise[]) => void;
     onRemoveExerciseFromTemplate: (templateId: ID, planInstanceId: ID) => void;
     onEditPlannedExercise: (templateId: ID, exercise: PlannedExercise) => void;
+    onReorderExerciseInTemplate: (templateId: ID, planInstanceId: ID, direction: 'up' | 'down') => void;
     onCreateTemplate: () => void;
     onEditTemplate: (template: WorkoutTemplate) => void;
     onDeleteTemplate: (templateId: ID) => void;
@@ -158,6 +232,7 @@ const WorkoutTemplateEditor: React.FC<WorkoutTemplateEditorProps> = (props) => {
         onAddExercisesToTemplate, 
         onRemoveExerciseFromTemplate,
         onEditPlannedExercise,
+        onReorderExerciseInTemplate,
         onCreateTemplate,
         onEditTemplate,
         onDeleteTemplate
@@ -168,7 +243,6 @@ const WorkoutTemplateEditor: React.FC<WorkoutTemplateEditorProps> = (props) => {
     const [activeLevel, setActiveLevel] = useState<LevelFilter>('הכל');
     const [activeTag, setActiveTag] = useState<TagFilter>('הכל');
     
-    // FIX: Use the dynamic `allCategories` prop for the tag filter, ensuring 'מנוחה' is included.
     const availableTags = useMemo(() => ['מנוחה', ...allCategories].filter((v, i, a) => a.indexOf(v) === i), [allCategories]);
 
     const handleToggleExpand = (templateId: ID) => {
@@ -181,7 +255,7 @@ const WorkoutTemplateEditor: React.FC<WorkoutTemplateEditorProps> = (props) => {
 
     const filteredTemplates = workoutTemplates.filter(template => {
         const levelMatch = activeLevel === 'הכל' || template.level === activeLevel;
-        const tagMatch = activeTag === 'הכל' || template.tags.includes(activeTag);
+        const tagMatch = activeTag === 'הכל' || (Array.isArray(template.tags) && template.tags.includes(activeTag));
         return levelMatch && tagMatch;
     });
 
@@ -215,7 +289,9 @@ const WorkoutTemplateEditor: React.FC<WorkoutTemplateEditorProps> = (props) => {
             </div>
             
             <div className="space-y-4">
-                {filteredTemplates.map(template => (
+                {filteredTemplates.map(template => {
+                    const durationText = calculateWorkoutDuration(template);
+                    return (
                     <div key={template.id} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
                         <div className="p-4">
                             <div className="flex justify-between items-center">
@@ -230,38 +306,65 @@ const WorkoutTemplateEditor: React.FC<WorkoutTemplateEditorProps> = (props) => {
                             </div>
                             <div className="flex flex-wrap items-center gap-2 mt-3 pr-7">
                                 <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${levelColorMap[template.level]}`}>{template.level}</span>
-                                {template.tags.map(tag => (
+                                {Array.isArray(template.tags) && template.tags.map(tag => (
                                      <span key={tag} className={`${getCategoryColor(tag)} text-xs font-semibold px-2.5 py-0.5 rounded-full`}>{tag}</span>
                                 ))}
-                                 <span className="text-sm bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-gray-300 px-2 py-1 rounded">
-                                    {template.exercises.length} תרגילים
-                                </span>
+                                {durationText ? (
+                                    <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-gray-300 px-2 py-1 rounded-full">
+                                        <ClockIcon className="w-4 h-4" />
+                                        <span className="text-xs font-semibold">{durationText}</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-gray-300 px-2 py-1 rounded-full">
+                                         <span className="text-xs font-semibold">{`${Array.isArray(template.exercises) ? template.exercises.length : 0} תרגילים`}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
                         {expandedTemplateId === template.id && (
                             <div className="p-4 border-t border-slate-200 dark:border-slate-700 space-y-3">
-                                {template.exercises.map(ex => {
-                                     const setsRepsString = [
-                                        ex.sets ? `${ex.sets} סטים` : '',
-                                        ex.reps ? `x ${ex.reps}` : '',
-                                        ex.duration ? `${ex.duration} שניות` : '',
-                                    ].filter(Boolean).join(' ');
+                                {Array.isArray(template.exercises) && template.exercises.length > 0 ? (
+                                    template.exercises.map((ex, index) => {
+                                        const setsRepsString = [
+                                            ex.sets ? `${ex.sets} סטים` : '',
+                                            ex.reps ? `x ${ex.reps}` : '',
+                                            formatDurationDisplay(ex.duration),
+                                        ].filter(Boolean).join(' ');
 
-                                    return (
-                                        <div key={ex.planInstanceId} className="flex justify-between items-center bg-slate-100 dark:bg-slate-700/50 p-3 rounded">
-                                            <div>
-                                                <span className="font-semibold text-slate-800 dark:text-gray-200">{ex.name}</span>
-                                                <span className="text-sm text-slate-500 dark:text-gray-400 mr-2">{setsRepsString}</span>
+                                        return (
+                                            <div key={ex.planInstanceId} className="flex justify-between items-center bg-slate-100 dark:bg-slate-700/50 p-3 rounded">
+                                                <div>
+                                                    <span className="font-semibold text-slate-800 dark:text-gray-200">{ex.name}</span>
+                                                    <span className="text-sm text-slate-500 dark:text-gray-400 mr-2">{setsRepsString}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <button onClick={() => onEditPlannedExercise(template.id, ex)} className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400"><EditIcon className="w-5 h-5"/></button>
+                                                    <button onClick={() => onRemoveExerciseFromTemplate(template.id, ex.planInstanceId)} className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400"><TrashIcon className="w-5 h-5"/></button>
+                                                    <div className="border-r border-slate-300 dark:border-slate-600 h-6 mx-2"></div>
+                                                    <button 
+                                                        onClick={() => onReorderExerciseInTemplate(template.id, ex.planInstanceId, 'up')}
+                                                        disabled={index === 0}
+                                                        aria-label="הזז למעלה"
+                                                        className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 disabled:opacity-30 disabled:cursor-not-allowed"
+                                                    >
+                                                        <ChevronUpIcon className="w-5 h-5"/>
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => onReorderExerciseInTemplate(template.id, ex.planInstanceId, 'down')}
+                                                        disabled={index === template.exercises.length - 1}
+                                                        aria-label="הזז למטה"
+                                                        className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 disabled:opacity-30 disabled:cursor-not-allowed"
+                                                    >
+                                                        <ChevronDownIcon className="w-5 h-5"/>
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <button onClick={() => onEditPlannedExercise(template.id, ex)} className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400"><EditIcon className="w-5 h-5"/></button>
-                                                <button onClick={() => onRemoveExerciseFromTemplate(template.id, ex.planInstanceId)} className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400"><TrashIcon className="w-5 h-5"/></button>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                                {template.exercises.length === 0 && <p className="text-gray-500 text-center">תבנית זו ריקה.</p>}
+                                        );
+                                    })
+                                ) : (
+                                    <p className="text-gray-500 text-center">תבנית זו ריקה.</p>
+                                )}
                                 <button 
                                     onClick={() => handleAddExerciseClick(template.id)}
                                     className="w-full mt-2 bg-violet-600/10 dark:bg-violet-600/20 hover:bg-violet-600/20 dark:hover:bg-violet-600/30 text-violet-800 dark:text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center gap-2"
@@ -283,7 +386,7 @@ const WorkoutTemplateEditor: React.FC<WorkoutTemplateEditorProps> = (props) => {
                             </div>
                         )}
                     </div>
-                ))}
+                )})}
             </div>
         </div>
     );

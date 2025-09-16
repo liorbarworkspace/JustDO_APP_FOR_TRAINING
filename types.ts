@@ -60,6 +60,7 @@ export type CompletionLogEntry = {
     workoutTemplate: WorkoutTemplate; // Snapshot of the workout
     completedExercises: { [planInstanceId: string]: PlannedExercise };
     feedback?: Feedback;
+    actualDurationSeconds?: number;
 };
 
 export type CompletionLog = {

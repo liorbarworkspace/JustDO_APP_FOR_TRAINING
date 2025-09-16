@@ -22,9 +22,12 @@ interface ExerciseLibraryProps {
     onDuplicateExercise: (exercise: Exercise) => void;
     onImportExercises: (file: File) => void;
     onExportExercises: () => void;
+    onImportAllData: (file: File) => void;
+    onExportAllData: () => void;
     onAddExercisesToTemplate: (templateId: ID, exercises: Exercise[]) => void;
     onRemoveExerciseFromTemplate: (templateId: ID, planInstanceId: ID) => void;
     onEditPlannedExercise: (templateId: ID, exercise: PlannedExercise) => void;
+    onReorderExerciseInTemplate: (templateId: ID, planInstanceId: ID, direction: 'up' | 'down') => void;
     onCreateTemplate: () => void;
     onEditTemplate: (template: WorkoutTemplate) => void;
     onDeleteTemplate: (templateId: ID) => void;
@@ -49,6 +52,8 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
         onDuplicateExercise,
         onImportExercises,
         onExportExercises,
+        onImportAllData,
+        onExportAllData,
         onCreateWeeklyPlan,
         onEditWeeklyPlan,
         onDeleteWeeklyPlan,
@@ -56,6 +61,7 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
         onSaveGeneratedPlan,
         onEditPlannedExercise,
         onConfirmBulkDelete,
+        onReorderExerciseInTemplate,
         ...templateHandlers
     } = props;
     
@@ -63,6 +69,7 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
     const [activeCategories, setActiveCategories] = useState<string[]>([]);
     const [activeLevel, setActiveLevel] = useState<Level>('הכל');
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const allDataFileInputRef = useRef<HTMLInputElement>(null);
     const [selectedExerciseIds, setSelectedExerciseIds] = useState<Set<ID>>(new Set());
 
     const availableCategories = useMemo(() => {
@@ -73,6 +80,14 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
         const file = event.target.files?.[0];
         if (file) {
             onImportExercises(file);
+            if(event.target) event.target.value = '';
+        }
+    };
+    
+    const handleAllDataFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            onImportAllData(file);
             if(event.target) event.target.value = '';
         }
     };
@@ -118,14 +133,14 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
         }
     };
     
-    const TabButton: React.FC<{tabName: LibraryTab, label: string}> = ({tabName, label}) => (
+    const TabButton: React.FC<{tabName: LibraryTab, label: string, className?: string}> = ({tabName, label, className = ''}) => (
         <button
             onClick={() => setActiveTab(tabName)}
-            className={`px-5 py-2 text-lg font-semibold transition-colors duration-300 border-b-4 ${
+            className={`w-full sm:w-auto whitespace-nowrap px-3 sm:px-5 py-2 text-base sm:text-lg font-semibold transition-colors duration-300 border-b-4 ${
                 activeTab === tabName
                     ? 'border-amber-500 text-amber-600 dark:text-amber-400'
                     : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-white hover:border-slate-400 dark:hover:border-slate-600'
-            }`}
+            } ${className}`}
         >
             {label}
         </button>
@@ -133,14 +148,58 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
 
     return (
         <div className="w-full max-w-screen-xl mx-auto p-4 md:p-6 text-right">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <div>
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight font-rubik">ספרייה ועריכה</h2>
+                    <p className="text-slate-500 dark:text-gray-400 mt-2 text-lg">נהל את כל הנתונים שלך במקום אחד.</p>
+                </div>
+                 <button
+                    onClick={onAddNewExercise}
+                    className="w-full sm:w-auto justify-center bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
+                >
+                    <PlusIcon className="w-5 h-5" />
+                    <span>תרגיל חדש</span>
+                </button>
+            </div>
+            
+            <div className="my-8 p-4 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                <h3 className="text-xl font-bold text-slate-800 dark:text-gray-200 mb-3">סנכרון וגיבוי</h3>
+                <p className="text-slate-600 dark:text-gray-400 mb-4">ייצא את כל הנתונים שלך לקובץ אחד כדי לגבות או לסנכרן עם מכשיר אחר.</p>
+                <div className="flex flex-wrap items-center justify-start gap-3">
+                     <button
+                        onClick={() => allDataFileInputRef.current?.click()}
+                        className="bg-violet-600 hover:bg-violet-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
+                    >
+                        <UploadCloudIcon className="w-5 h-5" />
+                        <span>ייבוא כל הנתונים</span>
+                    </button>
+                     <input
+                        type="file"
+                        ref={allDataFileInputRef}
+                        onChange={handleAllDataFileSelect}
+                        accept=".json"
+                        className="hidden"
+                    />
+                     <button
+                        onClick={onExportAllData}
+                        className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
+                    >
+                        <DownloadIcon className="w-5 h-5" />
+                        <span>ייצוא כל הנתונים</span>
+                    </button>
+                </div>
+            </div>
+
             <div className="mb-8">
                 <div className="border-b border-slate-200 dark:border-slate-700">
-                    <nav className="-mb-px flex space-x-8 space-x-reverse" aria-label="Tabs">
-                        <TabButton tabName="exercises" label="תרגילים" />
-                        <TabButton tabName="templates" label="תבניות אימון" />
-                        <TabButton tabName="plans" label="תוכניות שבועיות" />
-                        <TabButton tabName="generator" label="אשף תוכניות" />
-                    </nav>
+                    <div>
+                        <nav className="-mb-px grid grid-cols-3 sm:flex sm:space-x-8 sm:space-x-reverse gap-2" aria-label="Tabs">
+                            <TabButton tabName="exercises" label="תרגילים" />
+                            <TabButton tabName="templates" label="תבניות אימון" />
+                            <TabButton tabName="plans" label="תוכניות שבועיות" />
+                            <TabButton tabName="generator" label="אשף תוכניות" className="col-span-3" />
+                        </nav>
+                    </div>
                 </div>
             </div>
 
@@ -148,16 +207,16 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
                 <div>
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                         <div>
-                            <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight font-rubik">ספריית תרגילים</h2>
-                            <p className="text-slate-500 dark:text-gray-400 mt-2 text-lg">נהל את אוסף התרגילים שלך והוסף אותם לתבניות אימון.</p>
+                            <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">ניהול ספריית התרגילים</h3>
+                            <p className="text-slate-500 dark:text-gray-400 mt-1">נהל את אוסף התרגילים שלך והוסף אותם לתבניות אימון.</p>
                         </div>
                          <div className="w-full md:w-auto flex flex-wrap items-center justify-start md:justify-end gap-2">
                             <button
                                 onClick={() => fileInputRef.current?.click()}
-                                className="w-full sm:w-auto justify-center bg-violet-600 hover:bg-violet-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
+                                className="w-full sm:w-auto justify-center bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
                             >
                                 <UploadCloudIcon className="w-5 h-5" />
-                                <span>ייבוא</span>
+                                <span>ייבוא תרגילים (CSV)</span>
                             </button>
                             <input
                                 type="file"
@@ -168,17 +227,10 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
                             />
                              <button
                                 onClick={onExportExercises}
-                                className="w-full sm:w-auto justify-center bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
+                                className="w-full sm:w-auto justify-center bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
                             >
                                 <DownloadIcon className="w-5 h-5" />
-                                <span>ייצוא</span>
-                            </button>
-                            <button
-                                onClick={onAddNewExercise}
-                                className="w-full sm:w-auto justify-center bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
-                            >
-                                <PlusIcon className="w-5 h-5" />
-                                <span>תרגיל חדש</span>
+                                <span>ייצוא תרגילים (CSV)</span>
                             </button>
                         </div>
                     </div>
@@ -239,6 +291,7 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
                     exerciseLibrary={exerciseLibrary}
                     allCategories={allCategories}
                     onEditPlannedExercise={onEditPlannedExercise}
+                    onReorderExerciseInTemplate={onReorderExerciseInTemplate}
                     {...templateHandlers}
                 />
             )}
@@ -259,6 +312,7 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
                     exerciseLibrary={exerciseLibrary}
                     existingTemplates={workoutTemplates}
                     onSavePlan={onSaveGeneratedPlan}
+                    allCategories={allCategories}
                 />
             )}
         </div>

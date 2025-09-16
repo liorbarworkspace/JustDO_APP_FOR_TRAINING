@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { WorkoutTemplate } from '../types';
-import { WORKOUT_LEVELS, WORKOUT_TAGS } from '../constants';
+import { WORKOUT_LEVELS } from '../constants';
 
 type FormData = {
     title: string;
@@ -12,14 +12,19 @@ interface TemplateFormModalProps {
     onClose: () => void;
     onSave: (data: FormData) => void;
     initialData?: WorkoutTemplate | null;
+    allCategories: readonly string[];
 }
 
-const TemplateFormModal: React.FC<TemplateFormModalProps> = ({ isOpen, onClose, onSave, initialData }) => {
+const TemplateFormModal: React.FC<TemplateFormModalProps> = ({ isOpen, onClose, onSave, initialData, allCategories }) => {
     const [formData, setFormData] = useState<FormData>({
         title: '',
         level: 'מתחיל',
         tags: []
     });
+
+    const availableTags = useMemo(() => ['מנוחה', ...allCategories]
+        .filter((v, i, a) => a.indexOf(v) === i)
+        .sort((a,b) => a.localeCompare(b,'he')), [allCategories]);
 
     useEffect(() => {
         if (isOpen) {
@@ -91,7 +96,7 @@ const TemplateFormModal: React.FC<TemplateFormModalProps> = ({ isOpen, onClose, 
                     <div>
                         <label className="block mb-2 text-sm font-medium text-slate-700 dark:text-gray-300">תגיות</label>
                         <div className="bg-slate-100/50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 p-3 rounded-lg grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {WORKOUT_TAGS.map(tag => (
+                            {availableTags.map(tag => (
                                 <div key={tag} className="flex items-center p-1 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600">
                                     <input
                                         type="checkbox"

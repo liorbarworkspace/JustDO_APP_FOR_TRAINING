@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { PlannedExercise, ID } from '../types';
 
 interface EditPlannedExerciseModalProps {
@@ -10,9 +10,19 @@ interface EditPlannedExerciseModalProps {
 
 const EditPlannedExerciseModal: React.FC<EditPlannedExerciseModalProps> = ({ workoutId, exercise, onClose, onSave }) => {
     const [editedExercise, setEditedExercise] = useState<PlannedExercise>(exercise);
+    const [minutes, setMinutes] = useState<string>('');
+    const [seconds, setSeconds] = useState<string>('');
+
+    useEffect(() => {
+        setEditedExercise(exercise);
+        const d = exercise?.duration || 0;
+        setMinutes(d > 0 ? String(Math.floor(d / 60)) : '');
+        setSeconds(d > 0 ? String(d % 60) : '');
+    }, [exercise]);
 
     const handleSave = () => {
-        onSave(workoutId, editedExercise);
+        const totalDuration = (Number(minutes || 0) * 60) + Number(seconds || 0);
+        onSave(workoutId, { ...editedExercise, duration: totalDuration > 0 ? totalDuration : undefined });
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,16 +65,27 @@ const EditPlannedExerciseModal: React.FC<EditPlannedExerciseModalProps> = ({ wor
                         />
                     </div>
                     <div>
-                        <label htmlFor="duration" className="block mb-2 text-sm font-medium text-slate-700 dark:text-gray-300">משך (בשניות)</label>
-                        <input
-                            type="number"
-                            id="duration"
-                            name="duration"
-                            value={editedExercise.duration || ''}
-                            onChange={handleChange}
-                            className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2.5"
-                            placeholder="לדוגמה: 60"
-                        />
+                        <label className="block mb-2 text-sm font-medium text-slate-700 dark:text-gray-300">משך</label>
+                        <div className="flex items-center gap-2">
+                           <input
+                                type="number"
+                                min="0"
+                                value={minutes}
+                                onChange={(e) => setMinutes(e.target.value)}
+                                placeholder="דקות"
+                                className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2.5"
+                            />
+                             <span className="text-slate-500 dark:text-gray-400 font-bold">:</span>
+                            <input
+                                type="number"
+                                min="0"
+                                max="59"
+                                value={seconds}
+                                onChange={(e) => setSeconds(e.target.value)}
+                                placeholder="שניות"
+                                className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2.5"
+                            />
+                        </div>
                     </div>
                 </div>
 

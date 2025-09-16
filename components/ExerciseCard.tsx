@@ -57,6 +57,21 @@ const getCategoryColor = (category: string) => {
     return categoryColorMap[category] || categoryColorMap['default'];
 };
 
+const formatDurationDisplay = (seconds: number | undefined | null): string => {
+  if (!seconds || seconds <= 0) {
+    return '';
+  }
+  if (seconds < 60) {
+    return `${seconds} שניות`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (remainingSeconds === 0) {
+    return `${minutes} דקות`;
+  }
+  return `${minutes} דקות ו-${remainingSeconds} שניות`;
+};
+
 
 const ExerciseCard: React.FC<ExerciseCardProps> = ({ 
     exercise, 
@@ -75,7 +90,7 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
   const setsRepsString = [
     exercise.sets ? `${exercise.sets} סטים` : '',
     exercise.reps ? `x ${exercise.reps}` : '',
-    exercise.duration ? `${exercise.duration} שניות` : '',
+    formatDurationDisplay(exercise.duration),
   ].filter(Boolean).join(' ');
   
   const selectionClasses = isSelected ? 'ring-2 ring-amber-500 border-amber-400' : 'border-slate-200 dark:border-slate-700';
@@ -115,7 +130,7 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
         </div>
         
         <div className="flex flex-wrap gap-1 my-3">
-            {exercise.muscleGroups.map(group => (
+            {Array.isArray(exercise.muscleGroups) && exercise.muscleGroups.map(group => (
                 <span key={group} className="bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-gray-300 text-xs font-medium px-2 py-0.5 rounded">
                     {group}
                 </span>

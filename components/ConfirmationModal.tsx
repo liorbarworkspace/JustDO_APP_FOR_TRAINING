@@ -5,7 +5,7 @@ interface ConfirmationModalProps {
     onClose: () => void;
     onConfirm: () => void;
     item: {
-        type: 'exercise' | 'template' | 'plan' | 'bulk-exercise' | 'new-category';
+        type: 'exercise' | 'template' | 'plan' | 'bulk-exercise' | 'new-category' | 'all-data-import';
         id?: string;
         ids?: string[];
         data?: any;
@@ -43,6 +43,12 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, 
             message = `האם אתה בטוח שברצונך ליצור את הקטגוריה החדשה "${item.data.categoryName}"?`;
             confirmText = "כן, צור קטגוריה";
             confirmColor = "bg-green-600 hover:bg-green-700";
+            break;
+        case 'all-data-import':
+            title = "אישור ייבוא נתונים";
+            message = "אזהרה: פעולה זו תחליף את כל הנתונים הנוכחיים באפליקציה (תרגילים, תבניות, תוכניות) בנתונים מהקובץ. האם להמשיך?";
+            confirmText = "כן, יבא והחלף";
+            confirmColor = "bg-amber-600 hover:bg-amber-700";
             break;
     }
 

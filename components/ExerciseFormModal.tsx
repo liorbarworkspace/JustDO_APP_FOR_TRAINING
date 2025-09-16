@@ -26,9 +26,15 @@ const emptyExercise: Omit<Exercise, 'id'> = {
 
 const ExerciseFormModal: React.FC<ExerciseFormModalProps> = ({ isOpen, onClose, onSave, initialData, allCategories }) => {
     const [exercise, setExercise] = useState<Exercise | Omit<Exercise, 'id'>>(() => initialData || emptyExercise);
+    const [minutes, setMinutes] = useState<string>('');
+    const [seconds, setSeconds] = useState<string>('');
+
 
     useEffect(() => {
         setExercise(initialData || emptyExercise);
+        const d = initialData?.duration || 0;
+        setMinutes(d > 0 ? String(Math.floor(d / 60)) : '');
+        setSeconds(d > 0 ? String(d % 60) : '');
     }, [initialData, isOpen]);
 
     if (!isOpen) return null;
@@ -52,7 +58,8 @@ const ExerciseFormModal: React.FC<ExerciseFormModalProps> = ({ isOpen, onClose, 
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSave(exercise as Exercise);
+        const totalDuration = (Number(minutes || 0) * 60) + Number(seconds || 0);
+        onSave({ ...exercise, duration: totalDuration > 0 ? totalDuration : undefined } as Exercise);
     };
 
     return (
@@ -121,9 +128,28 @@ const ExerciseFormModal: React.FC<ExerciseFormModalProps> = ({ isOpen, onClose, 
                            <label htmlFor="reps" className="block mb-2 text-sm font-medium text-slate-700 dark:text-gray-300">חזרות</label>
                            <input type="text" name="reps" value={exercise.reps || ''} onChange={handleChange} className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2.5" />
                         </div>
-                         <div>
-                           <label htmlFor="duration" className="block mb-2 text-sm font-medium text-slate-700 dark:text-gray-300">משך (שניות)</label>
-                           <input type="number" name="duration" value={exercise.duration || ''} onChange={handleChange} className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2.5" />
+                        <div>
+                            <label className="block mb-2 text-sm font-medium text-slate-700 dark:text-gray-300">משך</label>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={minutes}
+                                    onChange={(e) => setMinutes(e.target.value)}
+                                    placeholder="דקות"
+                                    className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2.5"
+                                />
+                                <span className="text-slate-500 dark:text-gray-400 font-bold">:</span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="59"
+                                    value={seconds}
+                                    onChange={(e) => setSeconds(e.target.value)}
+                                    placeholder="שניות"
+                                    className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2.5"
+                                />
+                            </div>
                         </div>
                     </div>
                      <div>

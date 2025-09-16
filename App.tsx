@@ -156,15 +156,27 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>('plan');
   
   const [exerciseLibrary, setExerciseLibrary] = useState<Exercise[]>(() => {
-    try { const saved = localStorage.getItem('exerciseLibrary'); return saved ? JSON.parse(saved) : INITIAL_EXERCISE_LIBRARY; } catch { return INITIAL_EXERCISE_LIBRARY; }
+    try { 
+        const saved = localStorage.getItem('exerciseLibrary'); 
+        const parsed = saved ? JSON.parse(saved) : INITIAL_EXERCISE_LIBRARY;
+        return Array.isArray(parsed) ? parsed : INITIAL_EXERCISE_LIBRARY;
+    } catch { return INITIAL_EXERCISE_LIBRARY; }
   });
 
   const [workoutTemplates, setWorkoutTemplates] = useState<WorkoutTemplate[]>(() => {
-    try { const saved = localStorage.getItem('workoutTemplates'); return saved ? JSON.parse(saved) : INITIAL_WORKOUT_TEMPLATES; } catch { return INITIAL_WORKOUT_TEMPLATES; }
+    try { 
+        const saved = localStorage.getItem('workoutTemplates');
+        const parsed = saved ? JSON.parse(saved) : INITIAL_WORKOUT_TEMPLATES;
+        return Array.isArray(parsed) ? parsed : INITIAL_WORKOUT_TEMPLATES;
+    } catch { return INITIAL_WORKOUT_TEMPLATES; }
   });
   
   const [weeklyPlans, setWeeklyPlans] = useState<WeeklyPlan[]>(() => {
-     try { const saved = localStorage.getItem('weeklyPlans'); const plans = saved ? JSON.parse(saved) : INITIAL_WEEKLY_PLANS; return Array.isArray(plans) ? plans : INITIAL_WEEKLY_PLANS } catch { return INITIAL_WEEKLY_PLANS; }
+     try { 
+        const saved = localStorage.getItem('weeklyPlans');
+        const plans = saved ? JSON.parse(saved) : INITIAL_WEEKLY_PLANS; 
+        return Array.isArray(plans) ? plans : INITIAL_WEEKLY_PLANS 
+    } catch { return INITIAL_WEEKLY_PLANS; }
   });
 
   const [activeWeeklyPlanId, setActiveWeeklyPlanId] = useState<ID>(() => {
@@ -173,12 +185,20 @@ function App() {
   });
 
   const [completionLog, setCompletionLog] = useState<CompletionLog>(() => {
-    try { const saved = localStorage.getItem('workoutCompletionLog'); const log = saved ? JSON.parse(saved) : {}; return typeof log === 'object' && log !== null ? log : {}; } catch { return {}; }
+    try { 
+        const saved = localStorage.getItem('workoutCompletionLog'); 
+        const log = saved ? JSON.parse(saved) : {}; 
+        return typeof log === 'object' && log !== null && !Array.isArray(log) ? log : {};
+    } catch { return {}; }
   });
   
   // FIX: Create a state for categories to allow dynamic updates.
   const [allCategories, setAllCategories] = useState<readonly string[]>(() => {
-    try { const saved = localStorage.getItem('allCategories'); return saved ? JSON.parse(saved) : EXERCISE_CATEGORIES; } catch { return EXERCISE_CATEGORIES; }
+    try { 
+        const saved = localStorage.getItem('allCategories'); 
+        const parsed = saved ? JSON.parse(saved) : EXERCISE_CATEGORIES;
+        return Array.isArray(parsed) ? parsed : EXERCISE_CATEGORIES;
+    } catch { return EXERCISE_CATEGORIES; }
   });
 
   // Modals state
@@ -190,7 +210,7 @@ function App() {
   const [exerciseToEditInLibrary, setExerciseToEditInLibrary] = useState<Exercise | null>(null);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   // FIX: Update the state type to accommodate the new category confirmation flow.
-  const [itemToDelete, setItemToDelete] = useState<{type: 'exercise' | 'template' | 'plan' | 'bulk-exercise' | 'new-category', id?: ID, ids?: ID[], data?: any} | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{type: 'exercise' | 'template' | 'plan' | 'bulk-exercise' | 'new-category' | 'all-data-import', id?: ID, ids?: ID[], data?: any} | null>(null);
   const [isTemplateFormModalOpen, setIsTemplateFormModalOpen] = useState(false);
   const [templateToEdit, setTemplateToEdit] = useState<WorkoutTemplate | null>(null);
   const [isWeeklyPlanFormModalOpen, setIsWeeklyPlanFormModalOpen] = useState(false);
@@ -468,6 +488,26 @@ function App() {
       ));
   };
 
+  const handleReorderExerciseInTemplate = (templateId: ID, planInstanceId: ID, direction: 'up' | 'down') => {
+    setWorkoutTemplates(prev => prev.map(template => {
+      if (template.id === templateId) {
+        const exercises = [...template.exercises];
+        const index = exercises.findIndex(ex => ex.planInstanceId === planInstanceId);
+  
+        if (index === -1) return template;
+  
+        if (direction === 'up' && index > 0) {
+          [exercises[index], exercises[index - 1]] = [exercises[index - 1], exercises[index]];
+        } else if (direction === 'down' && index < exercises.length - 1) {
+          [exercises[index], exercises[index + 1]] = [exercises[index + 1], exercises[index]];
+        }
+  
+        return { ...template, exercises };
+      }
+      return template;
+    }));
+  };
+
   const handleOpenExerciseForm = (exercise: Exercise | null) => {
     setExerciseToEditInLibrary(exercise);
     setIsExerciseFormModalOpen(true);
@@ -595,6 +635,66 @@ function App() {
         document.body.removeChild(link);
         setInfoModalState({ isOpen: true, title: 'ספרייה יוצאה', message: 'ספריית התרגילים שלך יוצאה בהצלחה לקובץ CSV.', type: 'success' });
     };
+    
+   const handleExportAllData = () => {
+        const allData = {
+            exerciseLibrary,
+            workoutTemplates,
+            weeklyPlans,
+            allCategories,
+            // We don't export completionLog as it's device-specific history
+        };
+        const jsonString = JSON.stringify(allData, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'workout_data.json');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setInfoModalState({ isOpen: true, title: 'הנתונים יוצאו', message: 'כל נתוני האפליקציה שלך יוצאו בהצלחה. שמור את הקובץ כדי לגבות או להעביר למכשיר אחר.', type: 'success' });
+   };
+   
+   const handleImportAllData = (file: File) => {
+     const reader = new FileReader();
+     reader.onload = (e) => {
+         const text = e.target?.result;
+         if (typeof text === 'string') {
+             try {
+                 const data = JSON.parse(text);
+                 
+                 // Basic validation
+                 if (Array.isArray(data.exerciseLibrary) && Array.isArray(data.workoutTemplates) && Array.isArray(data.weeklyPlans) && Array.isArray(data.allCategories)) {
+                    setItemToDelete({ type: 'all-data-import', data: data });
+                    setIsConfirmModalOpen(true);
+                 } else {
+                     throw new Error("Invalid file structure.");
+                 }
+             } catch (error) {
+                 console.error("Error parsing all data JSON:", error);
+                 setInfoModalState({ isOpen: true, title: 'שגיאה בייבוא', message: 'קובץ ה-JSON אינו תקין או בעל מבנה שגוי.', type: 'error' });
+             }
+         }
+     };
+     reader.onerror = () => {
+         setInfoModalState({ isOpen: true, title: 'שגיאה בקריאת קובץ', message: 'אירעה שגיאה בקריאת הקובץ.', type: 'error' });
+     };
+     reader.readAsText(file);
+   };
+   
+   const performAllDataImport = (data: any) => {
+        setExerciseLibrary(data.exerciseLibrary);
+        setWorkoutTemplates(data.workoutTemplates);
+        setWeeklyPlans(data.weeklyPlans);
+        setAllCategories(data.allCategories);
+        // Reset active plan if the old one doesn't exist anymore
+        if (!data.weeklyPlans.some((p: WeeklyPlan) => p.id === activeWeeklyPlanId)) {
+            setActiveWeeklyPlanId(data.weeklyPlans[0]?.id || '');
+        }
+        setInfoModalState({ isOpen: true, title: 'הייבוא הושלם!', message: 'כל הנתונים שלך יובאו ונטענו בהצלחה.', type: 'success' });
+   }
 
    const handleOpenTemplateForm = (template: WorkoutTemplate | null) => {
         setTemplateToEdit(template);
@@ -724,8 +824,11 @@ function App() {
             onDuplicateExercise={handleDuplicateExercise}
             onImportExercises={handleImportExercises}
             onExportExercises={handleExportExercises}
+            onImportAllData={handleImportAllData}
+            onExportAllData={handleExportAllData}
             onRemoveExerciseFromTemplate={handleRemoveExerciseFromTemplate}
             onEditPlannedExercise={handleOpenEditModal}
+            onReorderExerciseInTemplate={handleReorderExerciseInTemplate}
             onCreateTemplate={() => handleOpenTemplateForm(null)}
             onEditTemplate={handleOpenTemplateForm}
             onDeleteTemplate={handleConfirmDeleteTemplate}
@@ -822,6 +925,7 @@ function App() {
             onClose={() => { setIsTemplateFormModalOpen(false); setTemplateToEdit(null); }}
             onSave={handleSaveTemplate}
             initialData={templateToEdit}
+            allCategories={allCategories}
         />
        )}
        
@@ -855,6 +959,9 @@ function App() {
                     // FIX: Handle the new category confirmation action.
                     case 'new-category':
                         itemToDelete.data.onConfirm();
+                        break;
+                    case 'all-data-import':
+                        performAllDataImport(itemToDelete.data);
                         break;
                 }
                 // FIX: Close the modal after any confirmation.

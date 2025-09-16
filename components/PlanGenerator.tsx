@@ -1,16 +1,56 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Exercise, WorkoutTemplate, WeeklyPlan, PlannedExercise } from '../types';
 import { PLAN_LEVELS, DAYS_OF_WEEK } from '../constants';
-import { SparklesIcon } from './icons';
+import { SparklesIcon, ChevronDownIcon } from './icons';
 
 interface PlanGeneratorProps {
     exerciseLibrary: Exercise[];
     existingTemplates: WorkoutTemplate[];
+    allCategories: readonly string[];
     onSavePlan: (data: { newTemplates: WorkoutTemplate[], newPlan: WeeklyPlan }) => void;
 }
 
 type Goal = 'general_fitness' | 'strength' | 'basketball' | 'endurance' | 'core_strength' | 'mobility_flexibility' | 'rehab_relaxation';
 type Level = typeof PLAN_LEVELS[number];
+type Duration = 'any' | 'short' | 'medium' | 'long';
+
+// --- Duration Calculation Logic ---
+const SECONDS_PER_REP = 3;
+
+const parseReps = (reps?: string): number => {
+    if (!reps) return 0;
+    const repsAsString = String(reps);
+    if (repsAsString.includes('-')) {
+        const parts = repsAsString.split('-').map(s => parseInt(s.trim(), 10));
+        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+            return (parts[0] + parts[1]) / 2;
+        }
+    }
+    const singleRep = parseInt(repsAsString, 10);
+    return isNaN(singleRep) ? 0 : singleRep;
+};
+
+const parseRest = (rest?: string): number => {
+    if (!rest) return 0;
+    const match = rest.match(/(\d+)/);
+    if (match) {
+        return parseInt(match[0], 10);
+    }
+    return 0;
+};
+
+const calculateExerciseDurationSeconds = (exercise: Exercise): number => {
+    const sets = exercise.sets || 1;
+    const activityTimePerSet = exercise.duration || (parseReps(exercise.reps) * SECONDS_PER_REP);
+    const restTime = parseRest(exercise.rest);
+
+    if (sets > 0 && activityTimePerSet > 0) {
+        return (sets * activityTimePerSet) + (Math.max(0, sets - 1) * restTime);
+    }
+    return 0;
+};
+// --- End Duration Calculation Logic ---
+
 
 const shuffleArray = <T,>(array: T[]): T[] => {
     const newArray = [...array];
@@ -21,7 +61,7 @@ const shuffleArray = <T,>(array: T[]): T[] => {
     return newArray;
 };
 
-const PlanGenerator: React.FC<PlanGeneratorProps> = ({ exerciseLibrary, existingTemplates, onSavePlan }) => {
+const PlanGenerator: React.FC<PlanGeneratorProps> = ({ exerciseLibrary, existingTemplates, allCategories, onSavePlan }) => {
     const [step, setStep] = useState(1);
     
     const [mainGoals, setMainGoals] = useState<Goal[]>(['general_fitness']);
@@ -29,13 +69,42 @@ const PlanGenerator: React.FC<PlanGeneratorProps> = ({ exerciseLibrary, existing
     const [workoutDays, setWorkoutDays] = useState<string[]>(['ראשון', 'שלישי', 'חמישי']);
     const [equipment, setEquipment] = useState<string[]>(['משקל גוף']);
     const [weightDetails, setWeightDetails] = useState('');
+    const [desiredDuration, setDesiredDuration] = useState<Duration>('any');
 
     const [generatedResult, setGeneratedResult] = useState<{ newTemplates: WorkoutTemplate[], newPlan: WeeklyPlan } | null>(null);
     const [generationError, setGenerationError] = useState<string | null>(null);
+    const [isMappingExpanded, setIsMappingExpanded] = useState(false);
+
+    const goalOptions: { key: Goal, label: string }[] = [
+        { key: 'general_fitness', label: 'כושר כללי' },
+        { key: 'strength', label: 'בניית כוח' },
+        { key: 'endurance', label: 'שיפור סיבולת' },
+        { key: 'core_strength', label: 'חיזוק ליבה ויציבות' },
+        { key: 'mobility_flexibility', label: 'גמישות ותנועה' },
+        { key: 'basketball', label: 'יכולות כדורסל' },
+        { key: 'rehab_relaxation', label: 'שיקום והרפיה' },
+    ];
+    
+    const durationOptions: { key: Duration, label: string }[] = [
+        { key: 'any', label: 'הכל' },
+        { key: 'short', label: 'קצר (20-30 דק\')' },
+        { key: 'medium', label: 'בינוני (30-45 דק\')' },
+        { key: 'long', label: 'ארוך (45+ דק\')' },
+    ];
+
+    const [categoryMappings, setCategoryMappings] = useState<Record<Goal, Exercise['category'][]>>({
+        general_fitness: ['כוח', 'ליבה', 'אירובי'],
+        strength: ['כוח', 'קליסטניקס'],
+        basketball: ['כדורסל', 'אירובי', 'ליבה', 'קליסטניקס'],
+        endurance: ['אירובי', 'אירובי'],
+        core_strength: ['ליבה', 'ליבה'],
+        mobility_flexibility: ['גמישות', 'הרפיה'],
+        rehab_relaxation: ['שיקום', 'הרפיה', 'גמישות'],
+    });
 
     useEffect(() => {
         setGenerationError(null);
-    }, [mainGoals, level, workoutDays, equipment]);
+    }, [mainGoals, level, workoutDays, equipment, desiredDuration]);
 
     const availableEquipment = useMemo(() => {
         const baseTerms = ['משקולות', 'מזרון', 'ספסל', 'כיסא', 'טבעות', 'דלגית', 'כדורסל', 'משקל גוף', 'מגרש'];
@@ -98,6 +167,17 @@ const PlanGenerator: React.FC<PlanGeneratorProps> = ({ exerciseLibrary, existing
         setEquipment([]);
     };
 
+    const handleMappingChange = (goal: Goal, category: string, isChecked: boolean) => {
+        setCategoryMappings(prev => {
+            const currentCategories = prev[goal] || [];
+            if (isChecked) {
+                return { ...prev, [goal]: [...new Set([...currentCategories, category])] as Exercise['category'][] };
+            } else {
+                return { ...prev, [goal]: currentCategories.filter(c => c !== category) };
+            }
+        });
+    };
+
 
     const generatePlanLogic = () => {
         setGenerationError(null);
@@ -112,21 +192,19 @@ const PlanGenerator: React.FC<PlanGeneratorProps> = ({ exerciseLibrary, existing
             setGenerationError(`לא נמצאו מספיק תרגילים בספרייה התואמים לרמה ("${level}") ולציוד שבחרת. נסה להוסיף תרגילים או לשנות את בחירתך.`);
             return;
         }
-
-        const goalRecipes: Record<Goal, Exercise['category'][]> = {
-            general_fitness: ['כוח', 'ליבה', 'אירובי'],
-            strength: ['כוח', 'קליסטניקס'],
-            basketball: ['כדורסל', 'אירובי', 'ליבה', 'קליסטניקס'],
-            endurance: ['אירובי', 'אירובי'],
-            core_strength: ['ליבה', 'ליבה'],
-            mobility_flexibility: ['גמישות', 'הרפיה'],
-            rehab_relaxation: ['שיקום', 'הרפיה', 'גמישות'],
+        
+        const DURATION_TARGETS = {
+            short: { min: 20 * 60, max: 30 * 60 },
+            medium: { min: 30 * 60, max: 45 * 60 },
+            long: { min: 45 * 60, max: 60 * 60 },
+            any: { min: 0, max: 60 * 60 },
         };
-        const preferredCategories = new Set(mainGoals.flatMap(goal => goalRecipes[goal]));
+        const maxDuration = DURATION_TARGETS[desiredDuration].max;
+
+        const preferredCategories = new Set(mainGoals.flatMap(goal => categoryMappings[goal]));
 
         let exercisePool = shuffleArray(availableExercises);
         const newTemplates: WorkoutTemplate[] = [];
-        const mainExercisesPerWorkout = 4;
         const numTemplatesToCreate = Math.min(workoutDays.length, 2);
         
         const pickFromPool = (categories: Exercise['category'][]): Exercise | null => {
@@ -139,26 +217,43 @@ const PlanGenerator: React.FC<PlanGeneratorProps> = ({ exerciseLibrary, existing
 
         for (let i = 0; i < numTemplatesToCreate; i++) {
             const templateExercises: PlannedExercise[] = [];
+            let currentDuration = 0;
 
             const warmup = pickFromPool(['חימום']);
-            if (warmup) templateExercises.push({ ...warmup, planInstanceId: crypto.randomUUID() });
+            if (warmup) {
+                templateExercises.push({ ...warmup, planInstanceId: crypto.randomUUID() });
+                currentDuration += calculateExerciseDurationSeconds(warmup);
+            }
 
-            for (let j = 0; j < mainExercisesPerWorkout; j++) {
-                let picked = pickFromPool(Array.from(preferredCategories));
+            while (currentDuration < maxDuration && templateExercises.length < 10 && exercisePool.length > 0) {
+                 let picked = pickFromPool(Array.from(preferredCategories));
                 if (!picked) {
                     const fallbackCategories = [...new Set(exercisePool.map(e => e.category))].filter(c => !['חימום', 'גמישות', 'הרפיה'].includes(c));
                     picked = pickFromPool(fallbackCategories);
                 }
+                
                 if (picked) {
-                    templateExercises.push({ ...picked, planInstanceId: crypto.randomUUID() });
+                    const exerciseDuration = calculateExerciseDurationSeconds(picked);
+                    if (currentDuration + exerciseDuration <= maxDuration * 1.1) { // Allow 10% buffer
+                        templateExercises.push({ ...picked, planInstanceId: crypto.randomUUID() });
+                        currentDuration += exerciseDuration;
+                    } else {
+                        exercisePool.push(picked); // Put it back if it's too long
+                        break; 
+                    }
+                } else {
+                    break;
                 }
             }
             
             const cooldown = pickFromPool(['גמישות', 'הרפיה']);
-            if (cooldown) templateExercises.push({ ...cooldown, planInstanceId: crypto.randomUUID() });
+            if (cooldown) {
+                 templateExercises.push({ ...cooldown, planInstanceId: crypto.randomUUID() });
+                 currentDuration += calculateExerciseDurationSeconds(cooldown);
+            }
 
             if (templateExercises.length < 3) {
-                 setGenerationError("לא ניתן היה ליצור אימון מלא מהתרגילים הזמינים. נסה לבחור ציוד נוסף או להוסיף תרגילים לספרייה.");
+                 setGenerationError("לא ניתן היה ליצור אימון מלא מהתרגילים הזמינים. נסה לבחור ציוד נוסף או לשנות את משך האימון.");
                  return;
             }
 
@@ -166,7 +261,7 @@ const PlanGenerator: React.FC<PlanGeneratorProps> = ({ exerciseLibrary, existing
                 id: crypto.randomUUID(),
                 title: `אימון משולב ${String.fromCharCode(1488 + i)} (אוטומטי)`,
                 type: "אימון משולב",
-                duration: "~45 דק'",
+                duration: `~${Math.round(currentDuration / 60)} דק'`,
                 level,
                 tags: [...new Set(templateExercises.map(ex => ex.category))],
                 exercises: templateExercises,
@@ -218,16 +313,6 @@ const PlanGenerator: React.FC<PlanGeneratorProps> = ({ exerciseLibrary, existing
             onSavePlan(generatedResult);
         }
     }
-
-    const goalOptions: { key: Goal, label: string }[] = [
-        { key: 'general_fitness', label: 'כושר כללי' },
-        { key: 'strength', label: 'בניית כוח' },
-        { key: 'endurance', label: 'שיפור סיבולת' },
-        { key: 'core_strength', label: 'חיזוק ליבה ויציבות' },
-        { key: 'mobility_flexibility', label: 'גמישות ותנועה' },
-        { key: 'basketball', label: 'יכולות כדורסל' },
-        { key: 'rehab_relaxation', label: 'שיקום והרפיה' },
-    ];
     
     if (step === 2 && generatedResult) {
         return (
@@ -329,6 +414,52 @@ const PlanGenerator: React.FC<PlanGeneratorProps> = ({ exerciseLibrary, existing
                         ))}
                     </div>
                 </div>
+            </div>
+
+            <div className="mt-6">
+                <button
+                    onClick={() => setIsMappingExpanded(!isMappingExpanded)}
+                    className="w-full flex justify-between items-center p-3 bg-slate-100 dark:bg-slate-800 rounded-lg text-lg font-medium text-slate-800 dark:text-gray-200"
+                >
+                    מיפוי קטגוריות למטרות (מתקדם)
+                    <ChevronDownIcon className={`w-5 h-5 transition-transform ${isMappingExpanded ? 'rotate-180' : ''}`} />
+                </button>
+                {isMappingExpanded && (
+                    <div className="p-4 border border-t-0 border-slate-200 dark:border-slate-700 rounded-b-lg bg-white dark:bg-slate-800/50">
+                        <div className="space-y-4">
+                            <div>
+                                <h4 className="font-semibold text-amber-600 dark:text-amber-400 mb-2">משך אימון רצוי</h4>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                     {durationOptions.map(opt => (
+                                        <button key={opt.key} onClick={() => setDesiredDuration(opt.key)} className={`p-3 rounded-lg text-center font-semibold transition-all duration-200 text-sm ${desiredDuration === opt.key ? 'bg-violet-500 text-white ring-2 ring-violet-400' : 'bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <p className="text-sm text-slate-500 dark:text-gray-400 pt-4">כאן ניתן להתאים אילו קטגוריות תרגילים ישמשו לבניית אימונים עבור כל מטרה.</p>
+                            {goalOptions.map(goalOpt => (
+                                <div key={goalOpt.key}>
+                                    <h4 className="font-semibold text-amber-600 dark:text-amber-400 mb-2">{goalOpt.label}</h4>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 p-2 bg-slate-50 dark:bg-slate-700/50 rounded-md">
+                                        {allCategories.map(cat => (
+                                            <div key={cat} className="flex items-center">
+                                                <input
+                                                    type="checkbox"
+                                                    id={`map-${goalOpt.key}-${cat}`}
+                                                    checked={categoryMappings[goalOpt.key]?.includes(cat as any) || false}
+                                                    onChange={(e) => handleMappingChange(goalOpt.key, cat, e.target.checked)}
+                                                    className="w-4 h-4 text-amber-600 bg-slate-100 dark:bg-gray-700 border-slate-300 dark:border-gray-600 rounded focus:ring-amber-600"
+                                                />
+                                                <label htmlFor={`map-${goalOpt.key}-${cat}`} className="mr-2 text-sm text-slate-700 dark:text-gray-300">{cat}</label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
             
             {generationError && (

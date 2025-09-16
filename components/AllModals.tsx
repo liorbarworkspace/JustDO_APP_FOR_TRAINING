@@ -72,6 +72,9 @@ export const EditCompletionLogModal: React.FC<EditCompletionLogModalProps> = ({ 
                     {entry.workoutTemplate.exercises.map(exercise => {
                         const isCompleted = !!editedCompletedExercises[exercise.planInstanceId];
                         const loggedExercise = editedCompletedExercises[exercise.planInstanceId] || exercise;
+                        const durationInSeconds = loggedExercise.duration || 0;
+                        const currentMinutes = Math.floor(durationInSeconds / 60);
+                        const currentSeconds = durationInSeconds % 60;
 
                         return (
                             <div key={exercise.planInstanceId} className={`p-3 rounded-lg border-2 transition-all ${isCompleted ? 'bg-green-50/50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-slate-100 dark:bg-slate-700/50 border-transparent'}`}>
@@ -99,10 +102,33 @@ export const EditCompletionLogModal: React.FC<EditCompletionLogModalProps> = ({ 
                                             <input type="text" value={loggedExercise.reps || ''} onChange={(e) => handleExerciseDetailChange(exercise.planInstanceId, 'reps', e.target.value)}
                                                 className="w-full bg-white dark:bg-slate-700 p-1.5 rounded-md border border-slate-300 dark:border-slate-600 text-sm" />
                                         </div>
-                                         <div>
-                                            <label className="text-xs text-slate-500 dark:text-gray-400">זמן (שניות)</label>
-                                            <input type="number" value={loggedExercise.duration || ''} onChange={(e) => handleExerciseDetailChange(exercise.planInstanceId, 'duration', e.target.value)}
-                                                className="w-full bg-white dark:bg-slate-700 p-1.5 rounded-md border border-slate-300 dark:border-slate-600 text-sm" />
+                                        <div>
+                                            <label className="text-xs text-slate-500 dark:text-gray-400">זמן</label>
+                                            <div className="flex items-center gap-1">
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={currentMinutes}
+                                                    onChange={(e) => {
+                                                        const newMinutes = Number(e.target.value) || 0;
+                                                        handleExerciseDetailChange(exercise.planInstanceId, 'duration', (newMinutes * 60) + currentSeconds);
+                                                    }}
+                                                    className="w-full bg-white dark:bg-slate-700 p-1.5 rounded-md border border-slate-300 dark:border-slate-600 text-sm"
+                                                    placeholder="דק'"
+                                                />
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="59"
+                                                    value={currentSeconds}
+                                                    onChange={(e) => {
+                                                        const newSeconds = Number(e.target.value) || 0;
+                                                        handleExerciseDetailChange(exercise.planInstanceId, 'duration', (currentMinutes * 60) + newSeconds);
+                                                    }}
+                                                    className="w-full bg-white dark:bg-slate-700 p-1.5 rounded-md border border-slate-300 dark:border-slate-600 text-sm"
+                                                    placeholder="שנ'"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 )}
@@ -139,10 +165,16 @@ const parseRestTime = (restString: string): number => {
 
 export const InWorkoutEditModal: React.FC<InWorkoutEditModalProps> = ({ isOpen, onClose, onSave, exerciseData }) => {
     const [editedExercise, setEditedExercise] = useState<PlannedExercise>(exerciseData);
+    const [minutes, setMinutes] = useState<string>('');
+    const [seconds, setSeconds] = useState<string>('');
+
 
     useEffect(() => {
         if (isOpen) {
             setEditedExercise(exerciseData);
+            const d = exerciseData?.duration || 0;
+            setMinutes(d > 0 ? String(Math.floor(d / 60)) : '');
+            setSeconds(d > 0 ? String(d % 60) : '');
         }
     }, [isOpen, exerciseData]);
 
@@ -165,7 +197,8 @@ export const InWorkoutEditModal: React.FC<InWorkoutEditModalProps> = ({ isOpen, 
     };
 
     const handleSave = () => {
-        onSave(editedExercise);
+        const totalDuration = (Number(minutes || 0) * 60) + Number(seconds || 0);
+        onSave({ ...editedExercise, duration: totalDuration > 0 ? totalDuration : undefined });
     };
 
     return (
@@ -184,8 +217,27 @@ export const InWorkoutEditModal: React.FC<InWorkoutEditModalProps> = ({ isOpen, 
                         <input type="text" id="reps" name="reps" value={editedExercise.reps || ''} onChange={handleChange} className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2.5" />
                     </div>
                     <div>
-                        <label htmlFor="duration" className="block mb-2 text-sm font-medium text-slate-700 dark:text-gray-300">משך (בשניות)</label>
-                        <input type="number" id="duration" name="duration" value={editedExercise.duration || ''} onChange={handleChange} className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2.5" />
+                        <label className="block mb-2 text-sm font-medium text-slate-700 dark:text-gray-300">משך</label>
+                        <div className="flex items-center gap-2">
+                           <input
+                                type="number"
+                                min="0"
+                                value={minutes}
+                                onChange={(e) => setMinutes(e.target.value)}
+                                placeholder="דקות"
+                                className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2.5"
+                            />
+                             <span className="text-slate-500 dark:text-gray-400 font-bold">:</span>
+                            <input
+                                type="number"
+                                min="0"
+                                max="59"
+                                value={seconds}
+                                onChange={(e) => setSeconds(e.target.value)}
+                                placeholder="שניות"
+                                className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2.5"
+                            />
+                        </div>
                     </div>
                     <div>
                         <label htmlFor="rest" className="block mb-2 text-sm font-medium text-slate-700 dark:text-gray-300">מנוחה (בשניות)</label>

@@ -1,13 +1,73 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { WeeklyPlan, WorkoutTemplate, ID, PlannedExercise, CompletionLogEntry } from '../types';
 import { DAYS_OF_WEEK } from '../constants';
-import { PlayIcon, PauseIcon, SkipBackIcon, SkipForwardIcon, ChevronDownIcon, EditIcon } from './icons';
+import { PlayIcon, PauseIcon, SkipBackIcon, SkipForwardIcon, ChevronDownIcon, EditIcon, ClockIcon } from './icons';
 
 const FINISH_SOUND_MP3 = 'https://codesandbox.io/s/z2j6x9/static/sounds/finish.mp3';
 const TICKING_SOUND_MP3 = 'https://codesandbox.io/s/z2j6x9/static/sounds/ticking.mp3';
 
+// --- Duration Calculation Logic ---
+const SECONDS_PER_REP_ESTIMATE = 3;
 
-type SessionState = 'exercise' | 'rest' | 'finished' | 'idle';
+const parseRepsForDuration = (reps?: string): number => {
+    if (!reps) return 0;
+    const repsAsString = String(reps);
+    if (repsAsString.includes('-')) {
+        const parts = repsAsString.split('-').map(s => parseInt(s.trim(), 10));
+        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+            return (parts[0] + parts[1]) / 2;
+        }
+    }
+    const singleRep = parseInt(repsAsString, 10);
+    return isNaN(singleRep) ? 0 : singleRep;
+};
+
+const parseRestForDuration = (rest?: string): number => {
+    if (!rest) return 0;
+    const match = rest.match(/(\d+)/);
+    if (match) {
+        return parseInt(match[0], 10);
+    }
+    return 0;
+};
+
+const calculateWorkoutDuration = (template: WorkoutTemplate | null): string => {
+    if (!template || !Array.isArray(template.exercises) || template.exercises.length === 0) {
+        return '';
+    }
+    let totalSeconds = 0;
+    for (const exercise of template.exercises) {
+        const sets = exercise.sets || 1;
+        const activityTimePerSet = exercise.duration || (parseRepsForDuration(exercise.reps) * SECONDS_PER_REP_ESTIMATE);
+        const restTime = parseRestForDuration(exercise.rest);
+        if (sets > 0 && activityTimePerSet > 0) {
+            totalSeconds += (sets * activityTimePerSet) + (Math.max(0, sets - 1) * restTime);
+        }
+    }
+    if (totalSeconds === 0) return '';
+    const totalMinutes = Math.round(totalSeconds / 60);
+    if (totalMinutes < 1) return '';
+    return `~${totalMinutes} דק'`;
+};
+// --- End Duration Calculation Logic ---
+
+const formatDurationDisplay = (seconds: number | undefined | null): string => {
+  if (!seconds || seconds <= 0) {
+    return '';
+  }
+  if (seconds < 60) {
+    return `${seconds} שניות`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (remainingSeconds === 0) {
+    return `${minutes} דקות`;
+  }
+  return `${minutes} דקות ו-${remainingSeconds} שניות`;
+};
+
+
+type SessionState = 'pre-start' | 'exercise' | 'rest' | 'finished' | 'idle';
 
 const parseRestTime = (restString: string): number => {
   if (!restString) return 60;
@@ -38,6 +98,9 @@ const WorkoutSessionPage: React.FC<{
     
     const [completedInstanceIds, setCompletedInstanceIds] = useState<Set<string>>(new Set());
     const [isAutoFlowActive, setIsAutoFlowActive] = useState(false);
+
+    const sessionStartTimeRef = useRef<number | null>(null);
+    const [sessionSeconds, setSessionSeconds] = useState(0);
 
     const todaysWorkoutInfo = useMemo(() => {
         const today = new Date();
@@ -92,9 +155,12 @@ const WorkoutSessionPage: React.FC<{
         setCurrentSet(1);
         setTimer(0);
         setIsTimerRunning(false);
-        setSessionState('idle');
         setPerformedExercisesLog({});
         setCompletedInstanceIds(new Set());
+        // FIX: Corrected typo from `setSessionStartTimeRef` to `sessionStartTimeRef`.
+        sessionStartTimeRef.current = null;
+        setSessionSeconds(0);
+        setSessionState(todaysWorkout && todaysWorkout.exercises.length > 0 ? 'pre-start' : 'idle');
     }, [todaysWorkout]);
     
      useEffect(() => {
@@ -113,11 +179,22 @@ const WorkoutSessionPage: React.FC<{
     }, []);
 
     useEffect(() => {
-        if (currentExercise) {
+        let interval: number;
+        if (sessionStartTimeRef.current && sessionState !== 'finished' && sessionState !== 'pre-start') {
+            interval = window.setInterval(() => {
+                setSessionSeconds(Math.floor((Date.now() - (sessionStartTimeRef.current ?? 0)) / 1000));
+            }, 1000);
+        }
+        return () => {
+            if (interval) window.clearInterval(interval);
+        };
+    }, [sessionState]);
+
+    useEffect(() => {
+        if (currentExercise && sessionState === 'exercise') {
             setIsTimerRunning(false);
             setCurrentSet(1);
             setTimer(currentExercise.duration || 0);
-            setSessionState('exercise');
             setIsDetailsExpanded(false);
             tickingSoundRef.current?.pause();
             setCountdown(null);
@@ -126,7 +203,7 @@ const WorkoutSessionPage: React.FC<{
                 setPerformedExercisesLog(prev => ({ ...prev, [currentExercise.planInstanceId]: currentExercise }));
             }
         }
-    }, [currentExercise]);
+    }, [currentExercise, sessionState]);
     
     useEffect(() => {
         if (sessionState === 'finished') return;
@@ -290,23 +367,30 @@ const WorkoutSessionPage: React.FC<{
             setCurrentExerciseIndex(prev => prev + 1);
         } else {
             setSessionState('finished');
-            if (todaysWorkoutInfo) {
-                const finalCompletedExercises: { [planInstanceId: string]: PlannedExercise } = {};
-                const finalIdSet = new Set(completedInstanceIds).add(currentExercise.planInstanceId);
-                
-                finalIdSet.forEach(id => {
-                    finalCompletedExercises[id] = performedExercisesLog[id] || liveTodaysWorkout.exercises.find(ex => ex.planInstanceId === id)!;
-                });
+            tickingSoundRef.current?.pause();
+            setIsTimerRunning(false);
+        }
+    };
+    
+    const handleFinishWorkout = () => {
+        if (todaysWorkoutInfo && liveTodaysWorkout && currentExercise) {
+            const finalCompletedExercises: { [planInstanceId: string]: PlannedExercise } = {};
+            // Make sure to include the last exercise
+            const finalIdSet = new Set(completedInstanceIds).add(currentExercise.planInstanceId);
+            
+            finalIdSet.forEach(id => {
+                finalCompletedExercises[id] = performedExercisesLog[id] || liveTodaysWorkout.exercises.find(ex => ex.planInstanceId === id)!;
+            });
 
-                const finalLogEntry: CompletionLogEntry = {
-                    weeklyPlanName: todaysWorkoutInfo.plan.name,
-                    dayOfWeek: todaysWorkoutInfo.day,
-                    workoutTemplate: liveTodaysWorkout,
-                    completedExercises: finalCompletedExercises
-                };
-                onUpdateCompletion(todaysWorkoutInfo.date, finalLogEntry);
-                onOpenFeedbackModal(todaysWorkoutInfo.date);
-            }
+            const finalLogEntry: CompletionLogEntry = {
+                weeklyPlanName: todaysWorkoutInfo.plan.name,
+                dayOfWeek: todaysWorkoutInfo.day,
+                workoutTemplate: liveTodaysWorkout,
+                completedExercises: finalCompletedExercises,
+                actualDurationSeconds: sessionSeconds,
+            };
+            onUpdateCompletion(todaysWorkoutInfo.date, finalLogEntry);
+            onOpenFeedbackModal(todaysWorkoutInfo.date);
         }
     };
     
@@ -342,6 +426,54 @@ const WorkoutSessionPage: React.FC<{
         }
     };
     
+    const handleStartWorkout = () => {
+        setSessionState('exercise');
+        sessionStartTimeRef.current = Date.now();
+    };
+    
+    if (sessionState === 'pre-start') {
+         return (
+            <div className="w-full max-w-screen-lg mx-auto p-4 md:p-6 text-center flex flex-col items-center justify-center h-[calc(100vh-200px)]">
+                <div className="bg-white dark:bg-slate-800/50 rounded-xl p-8 border border-slate-200 dark:border-slate-700 shadow-lg text-center">
+                    <h2 className="text-4xl font-extrabold text-slate-800 dark:text-white mb-2 font-rubik">
+                        {todaysWorkout?.title}
+                    </h2>
+                    <p className="text-amber-500 font-semibold text-xl mb-6">{calculateWorkoutDuration(todaysWorkout)}</p>
+                    <p className="text-slate-600 dark:text-gray-300 text-lg mb-8 max-w-md mx-auto">
+                        התכונן. נשום עמוק. הגיע הזמן לדחוף את הגבולות שלך.
+                    </p>
+                    <button
+                        onClick={handleStartWorkout}
+                        className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 px-10 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
+                    >
+                        <span className="text-2xl font-rubik">התחל אימון</span>
+                    </button>
+                </div>
+            </div>
+        );
+    }
+    
+    // FIX: The original condition caused a TypeScript error because it checked for 'pre-start'
+    // after the type had already been narrowed. This is simplified to a direct check for 'finished'.
+    // A duplicated block of code was also removed.
+    if (sessionState === 'finished') {
+        return (
+            <div className="w-full max-w-screen-lg mx-auto p-4 md:p-6 text-center flex flex-col items-center justify-center h-[calc(100vh-200px)]">
+                <div className="bg-white dark:bg-slate-800/50 rounded-xl p-8 border border-amber-400 shadow-lg">
+                    <h2 className="text-4xl font-extrabold text-amber-500 mb-4 font-rubik">כל הכבוד!</h2>
+                    <p className="text-slate-600 dark:text-gray-300 text-lg mb-6">סיימת את האימון בהצלחה.</p>
+                    <div className="mb-8">
+                        <p className="text-slate-500 dark:text-gray-400">זמן אימון כולל</p>
+                        <p className="text-6xl font-mono font-bold text-slate-900 dark:text-white">{formatTime(sessionSeconds)}</p>
+                    </div>
+                    <button onClick={handleFinishWorkout} className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-8 rounded-lg transition-colors duration-300 text-lg">
+                        סיום אימון ומתן משוב
+                    </button>
+                </div>
+            </div>
+        );
+    }
+    
     if (!todaysWorkout || !liveTodaysWorkout || liveTodaysWorkout.exercises.length === 0) {
         return (
             <div className="text-center py-20 px-4 w-full max-w-4xl mx-auto">
@@ -350,6 +482,7 @@ const WorkoutSessionPage: React.FC<{
             </div>
         );
     }
+
 
     if (!currentExercise) return null;
     
@@ -361,17 +494,22 @@ const WorkoutSessionPage: React.FC<{
     const setsRepsString = [
         totalSets ? `${totalSets} סטים` : '',
         loggedExercise.reps ? `x ${loggedExercise.reps}` : '',
-        isTimedExercise ? `${loggedExercise.duration} שניות` : '',
+        formatDurationDisplay(loggedExercise.duration),
     ].filter(Boolean).join(' ');
 
     const getStatusText = () => {
         if (sessionState === 'rest') return 'מנוחה';
-        if (sessionState === 'finished') return 'התרגיל הסתיים!';
+        // FIX: Removed unreachable code `if (sessionState === 'finished')`.
+        // The component's control flow ensures this function isn't called when the workout is finished, fixing a TypeScript error.
         return `סט ${currentSet} מתוך ${totalSets}`;
     }
 
     return (
         <div className="w-full max-w-screen-lg mx-auto p-4 md:p-6 text-right flex flex-col items-center relative">
+            <div className="absolute top-0 right-0 m-4 bg-slate-800 text-white p-2 px-4 rounded-lg shadow-lg z-10 font-mono text-lg flex items-center gap-2">
+                <ClockIcon className="w-5 h-5" />
+                <span>{formatTime(sessionSeconds)}</span>
+            </div>
             {countdown !== null && (
                 <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
                     <div className="text-center">
