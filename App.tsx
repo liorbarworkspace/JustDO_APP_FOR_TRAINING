@@ -111,6 +111,165 @@ const parseExercisesCSV = (csvText: string): { exercises: Exercise[] | null, err
     return { exercises: newExercises, error: null };
 };
 
+const parseTemplatesCSV = (csvText: string, exerciseLibrary: Exercise[], existingTemplates: WorkoutTemplate[]): { updatedTemplates: WorkoutTemplate[], error: string | null, summary: string } => {
+    const lines = csvText.trim().split(/\r?\n/).filter(line => line.trim() !== '');
+    if (lines.length < 2) return { updatedTemplates: [], error: "קובץ CSV של תבניות חייב להכיל כותרת ולפחות שורה אחת.", summary: '' };
+
+    let headerLine = lines[0];
+    if (headerLine.charCodeAt(0) === 0xFEFF) headerLine = headerLine.substring(1);
+    const delimiter = headerLine.includes('\t') ? '\t' : ',';
+    const headers = headerLine.split(delimiter).map(h => h.trim().toLowerCase().replace(/"/g, ''));
+    const requiredHeaders = ['template_title', 'template_level', 'exercise_name'];
+    const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+    if (missingHeaders.length > 0) return { updatedTemplates: [], error: `חסרות עמודות חובה בקובץ התבניות: ${missingHeaders.join(', ')}`, summary: '' };
+
+    const exerciseMapByName = new Map(exerciseLibrary.map(ex => [ex.name.toLowerCase(), ex]));
+    const templatesData = new Map<string, { info: any, exercisesData: any[] }>();
+
+    lines.slice(1).forEach(line => {
+        const data = universalParseLine(line, delimiter);
+        const row: any = {};
+        headers.forEach((header, index) => { row[header] = data[index] || ''; });
+
+        if (!row.template_title || !row.exercise_name) return;
+
+        if (!templatesData.has(row.template_title)) {
+            templatesData.set(row.template_title, {
+                info: {
+                    title: row.template_title,
+                    level: (WORKOUT_LEVELS as readonly string[]).includes(row.template_level) ? row.template_level : 'כל הרמות',
+                    tags: row.template_tags ? row.template_tags.split(',').map((s: string) => s.trim()) : [],
+                },
+                exercisesData: []
+            });
+        }
+        templatesData.get(row.template_title)!.exercisesData.push(row);
+    });
+    
+    let updatedCount = 0;
+    let createdCount = 0;
+    let skippedExercises = 0;
+    const finalTemplates = [...existingTemplates];
+    const existingTemplatesMap = new Map(existingTemplates.map(t => [t.title, t]));
+
+    templatesData.forEach(({ info, exercisesData }) => {
+        const plannedExercises: PlannedExercise[] = [];
+        exercisesData.forEach(exData => {
+            const baseExercise = exerciseMapByName.get(exData.exercise_name.toLowerCase());
+            if (baseExercise) {
+                plannedExercises.push({
+                    ...baseExercise,
+                    planInstanceId: crypto.randomUUID(),
+                    sets: exData.sets && !isNaN(parseInt(exData.sets, 10)) ? parseInt(exData.sets, 10) : baseExercise.sets,
+                    reps: exData.reps || baseExercise.reps,
+                    duration: exData.duration && !isNaN(parseInt(exData.duration, 10)) ? parseInt(exData.duration, 10) : baseExercise.duration,
+                    rest: exData.rest || baseExercise.rest,
+                });
+            } else {
+                skippedExercises++;
+            }
+        });
+
+        if (existingTemplatesMap.has(info.title)) {
+            const existingIndex = finalTemplates.findIndex(t => t.title === info.title);
+            finalTemplates[existingIndex] = {
+                ...finalTemplates[existingIndex],
+                ...info,
+                exercises: plannedExercises,
+            };
+            updatedCount++;
+        } else {
+            finalTemplates.push({
+                ...info,
+                id: crypto.randomUUID(),
+                type: "אימון מותאם",
+                duration: "",
+                exercises: plannedExercises,
+            });
+            createdCount++;
+        }
+    });
+
+    const summary = `יובאו ${createdCount} תבניות חדשות, עודכנו ${updatedCount} תבניות קיימות. ${skippedExercises > 0 ? `דילוג על ${skippedExercises} תרגילים שלא נמצאו בספרייה.` : ''}`;
+    return { updatedTemplates: finalTemplates, error: null, summary };
+};
+
+const parsePlansCSV = (csvText: string, existingTemplates: WorkoutTemplate[], existingPlans: WeeklyPlan[]): { updatedPlans: WeeklyPlan[], newTemplates: WorkoutTemplate[], error: string | null, summary: string } => {
+    const lines = csvText.trim().split(/\r?\n/).filter(line => line.trim() !== '');
+    if (lines.length < 2) return { updatedPlans: [], newTemplates: [], error: "קובץ CSV של תוכניות חייב להכיל כותרת ולפחות שורה אחת.", summary: '' };
+
+    let headerLine = lines[0];
+    if (headerLine.charCodeAt(0) === 0xFEFF) headerLine = headerLine.substring(1);
+    const delimiter = headerLine.includes('\t') ? '\t' : ',';
+    const headers = headerLine.split(delimiter).map(h => h.trim().toLowerCase().replace(/"/g, ''));
+    const requiredHeaders = ['plan_name', 'plan_level'];
+    const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+    if (missingHeaders.length > 0) return { updatedPlans: [], newTemplates: [], error: `חסרות עמודות חובה בקובץ התוכניות: ${missingHeaders.join(', ')}`, summary: '' };
+
+    const newPlaceholderTemplates: WorkoutTemplate[] = [];
+    const finalPlans = [...existingPlans];
+    let updatedCount = 0;
+    let createdCount = 0;
+    
+    lines.slice(1).forEach(line => {
+        const data = universalParseLine(line, delimiter);
+        const row: any = {};
+        headers.forEach((header, index) => { row[header] = data[index] || ''; });
+
+        if (!row.plan_name || !row.plan_level) return;
+
+        const allTemplates = [...existingTemplates, ...newPlaceholderTemplates];
+        const templateMapByTitle = new Map(allTemplates.map(t => [t.title, t]));
+
+        const schedule: WeeklyPlan['schedule'] = {};
+        DAYS_OF_WEEK.forEach((day, index) => {
+            const dayKey = day.toLowerCase();
+            const headerIndex = headers.indexOf(dayKey);
+            // FIX: Corrected variable from `headerKey` to `dayKey` to correctly look up template title.
+            const templateTitle = headerIndex > -1 ? row[dayKey] : '';
+
+            if (templateTitle && templateTitle.toLowerCase() !== 'מנוחה') {
+                let template = templateMapByTitle.get(templateTitle);
+                if (!template) {
+                    template = {
+                        id: crypto.randomUUID(),
+                        title: templateTitle,
+                        level: 'כל הרמות',
+                        tags: [],
+                        type: "אימון מיובא",
+                        duration: "",
+                        exercises: []
+                    };
+                    newPlaceholderTemplates.push(template);
+                    templateMapByTitle.set(template.title, template); // Add to map for subsequent lookups
+                }
+                schedule[day] = template.id;
+            } else {
+                schedule[day] = null;
+            }
+        });
+
+        const existingPlanIndex = finalPlans.findIndex(p => p.name === row.plan_name);
+        const planData = {
+            name: row.plan_name,
+            level: (PLAN_LEVELS as readonly string[]).includes(row.plan_level) ? row.plan_level : 'מתחיל',
+            schedule: schedule
+        };
+
+        if (existingPlanIndex > -1) {
+            finalPlans[existingPlanIndex] = { ...finalPlans[existingPlanIndex], ...planData };
+            updatedCount++;
+        } else {
+            finalPlans.push({ ...planData, id: crypto.randomUUID() });
+            createdCount++;
+        }
+    });
+
+    const summary = `יובאו ${createdCount} תוכניות חדשות, עודכנו ${updatedCount} תוכניות קיימות. ${newPlaceholderTemplates.length > 0 ? `נוצרו ${newPlaceholderTemplates.length} תבניות אימון חדשות (ריקות).` : ''}`;
+    return { updatedPlans: finalPlans, newTemplates: newPlaceholderTemplates, error: null, summary };
+};
+
+
 const onboardingSteps = [
     { title: 'ברוכים הבאים!', content: 'זהו סיור מהיר שיכיר לכם את האפליקציה. בכל שלב, נסביר על חלק אחר ונעביר אתכם אליו.' },
     { title: 'תוכנית אימונים', content: 'זהו דף הבית שלכם. כאן תראו את תוכנית האימונים השבועית שלכם ותוכלו להתחיל אימון.', targetId: 'onboarding-target-plan', tab: 'plan' },
@@ -684,6 +843,43 @@ function App() {
      reader.readAsText(file);
    };
    
+    const handleImportTemplates = (file: File) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const text = e.target?.result as string;
+            if (text) {
+                const { updatedTemplates, error, summary } = parseTemplatesCSV(text, exerciseLibrary, workoutTemplates);
+                if (error) {
+                    setInfoModalState({ isOpen: true, title: 'שגיאה בייבוא תבניות', message: error, type: 'error' });
+                } else {
+                    setWorkoutTemplates(updatedTemplates);
+                    setInfoModalState({ isOpen: true, title: 'ייבוא תבניות הושלם', message: summary, type: 'success' });
+                }
+            }
+        };
+        reader.readAsText(file, 'UTF-8');
+    };
+
+    const handleImportPlans = (file: File) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const text = e.target?.result as string;
+            if (text) {
+                const { updatedPlans, newTemplates, error, summary } = parsePlansCSV(text, workoutTemplates, weeklyPlans);
+                if (error) {
+                    setInfoModalState({ isOpen: true, title: 'שגיאה בייבוא תוכניות', message: error, type: 'error' });
+                } else {
+                    if (newTemplates.length > 0) {
+                        setWorkoutTemplates(prev => [...prev, ...newTemplates]);
+                    }
+                    setWeeklyPlans(updatedPlans);
+                    setInfoModalState({ isOpen: true, title: 'ייבוא תוכניות הושלם', message: summary, type: 'success' });
+                }
+            }
+        };
+        reader.readAsText(file, 'UTF-8');
+    };
+   
    const performAllDataImport = (data: any) => {
         setExerciseLibrary(data.exerciseLibrary);
         setWorkoutTemplates(data.workoutTemplates);
@@ -826,6 +1022,8 @@ function App() {
             onExportExercises={handleExportExercises}
             onImportAllData={handleImportAllData}
             onExportAllData={handleExportAllData}
+            onImportTemplates={handleImportTemplates}
+            onImportPlans={handleImportPlans}
             onRemoveExerciseFromTemplate={handleRemoveExerciseFromTemplate}
             onEditPlannedExercise={handleOpenEditModal}
             onReorderExerciseInTemplate={handleReorderExerciseInTemplate}

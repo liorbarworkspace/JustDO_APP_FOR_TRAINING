@@ -24,6 +24,8 @@ interface ExerciseLibraryProps {
     onExportExercises: () => void;
     onImportAllData: (file: File) => void;
     onExportAllData: () => void;
+    onImportTemplates: (file: File) => void;
+    onImportPlans: (file: File) => void;
     onAddExercisesToTemplate: (templateId: ID, exercises: Exercise[]) => void;
     onRemoveExerciseFromTemplate: (templateId: ID, planInstanceId: ID) => void;
     onEditPlannedExercise: (templateId: ID, exercise: PlannedExercise) => void;
@@ -54,6 +56,8 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
         onExportExercises,
         onImportAllData,
         onExportAllData,
+        onImportTemplates,
+        onImportPlans,
         onCreateWeeklyPlan,
         onEditWeeklyPlan,
         onDeleteWeeklyPlan,
@@ -69,6 +73,8 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
     const [activeCategories, setActiveCategories] = useState<string[]>([]);
     const [activeLevel, setActiveLevel] = useState<Level>('הכל');
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const templatesFileInputRef = useRef<HTMLInputElement>(null);
+    const plansFileInputRef = useRef<HTMLInputElement>(null);
     const allDataFileInputRef = useRef<HTMLInputElement>(null);
     const [selectedExerciseIds, setSelectedExerciseIds] = useState<Set<ID>>(new Set());
 
@@ -80,6 +86,22 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
         const file = event.target.files?.[0];
         if (file) {
             onImportExercises(file);
+            if(event.target) event.target.value = '';
+        }
+    };
+    
+    const handleTemplatesFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            onImportTemplates(file);
+            if(event.target) event.target.value = '';
+        }
+    };
+
+    const handlePlansFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            onImportPlans(file);
             if(event.target) event.target.value = '';
         }
     };
@@ -210,28 +232,20 @@ const ExerciseLibrary: React.FC<ExerciseLibraryProps> = (props) => {
                             <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">ניהול ספריית התרגילים</h3>
                             <p className="text-slate-500 dark:text-gray-400 mt-1">נהל את אוסף התרגילים שלך והוסף אותם לתבניות אימון.</p>
                         </div>
-                         <div className="w-full md:w-auto flex flex-wrap items-center justify-start md:justify-end gap-2">
-                            <button
-                                onClick={() => fileInputRef.current?.click()}
-                                className="w-full sm:w-auto justify-center bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
-                            >
-                                <UploadCloudIcon className="w-5 h-5" />
-                                <span>ייבוא תרגילים (CSV)</span>
-                            </button>
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={handleFileSelect}
-                                accept=".csv,.tsv,.txt"
-                                className="hidden"
-                            />
-                             <button
-                                onClick={onExportExercises}
-                                className="w-full sm:w-auto justify-center bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center gap-2"
-                            >
-                                <DownloadIcon className="w-5 h-5" />
-                                <span>ייצוא תרגילים (CSV)</span>
-                            </button>
+                         <div className="w-full md:w-auto flex flex-col sm:flex-row flex-wrap items-stretch justify-start md:justify-end gap-2">
+                             <div className="flex items-center gap-2 p-2 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                                <span className="font-semibold text-slate-600 dark:text-gray-300">ייבוא (CSV):</span>
+                                <button onClick={() => fileInputRef.current?.click()} className="bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold py-2 px-3 rounded-md transition-colors text-sm">תרגילים</button>
+                                <button onClick={() => templatesFileInputRef.current?.click()} className="bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold py-2 px-3 rounded-md transition-colors text-sm">תבניות</button>
+                                <button onClick={() => plansFileInputRef.current?.click()} className="bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold py-2 px-3 rounded-md transition-colors text-sm">תוכניות</button>
+                            </div>
+                             <div className="flex items-center gap-2 p-2 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                                <span className="font-semibold text-slate-600 dark:text-gray-300">ייצוא (CSV):</span>
+                                <button onClick={onExportExercises} className="bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold py-2 px-3 rounded-md transition-colors text-sm">תרגילים</button>
+                            </div>
+                            <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept=".csv,.tsv,.txt" className="hidden"/>
+                            <input type="file" ref={templatesFileInputRef} onChange={handleTemplatesFileSelect} accept=".csv,.tsv,.txt" className="hidden"/>
+                            <input type="file" ref={plansFileInputRef} onChange={handlePlansFileSelect} accept=".csv,.tsv,.txt" className="hidden"/>
                         </div>
                     </div>
 
