@@ -13,7 +13,7 @@ import WeeklyPlanFormModal from './components/WeeklyPlanFormModal';
 import FeedbackModal from './components/FeedbackModal';
 import Login from './components/Login';
 import { EditCompletionLogModal, InWorkoutEditModal, InfoModal, OnboardingGuide } from './components/AllModals';
-import { SunIcon, MoonIcon, DumbbellIcon } from './components/icons';
+import { SunIcon, MoonIcon, DumbbellIcon, PanelTopCloseIcon, PanelTopOpenIcon } from './components/icons';
 import { INITIAL_WORKOUT_TEMPLATES, INITIAL_EXERCISE_LIBRARY, INITIAL_WEEKLY_PLANS, WORKOUT_LEVELS, PLAN_LEVELS, EXERCISE_CATEGORIES, EXERCISE_LEVELS, DAYS_OF_WEEK } from './constants';
 import type { WorkoutTemplate, CompletionLog, Exercise, PlannedExercise, ID, WeeklyPlan, CompletionLogEntry, Feedback } from './types';
 
@@ -381,6 +381,7 @@ function App() {
   const [isInWorkoutEditModalOpen, setIsInWorkoutEditModalOpen] = useState(false);
   const [inWorkoutEditData, setInWorkoutEditData] = useState<{ exercise: PlannedExercise; onSave: (updatedExercise: PlannedExercise) => void; } | null>(null);
   const [infoModalState, setInfoModalState] = useState<InfoModalState>({ isOpen: false, title: '', message: '', type: 'success' });
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
 
 
   useEffect(() => {
@@ -1209,8 +1210,15 @@ function App() {
         type={infoModalState.type}
       />
 
+      <button
+        onClick={() => setIsHeaderVisible(!isHeaderVisible)}
+        className="fixed top-2 right-2 z-50 p-2 bg-slate-200/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-full text-slate-600 dark:text-gray-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-all"
+        aria-label={isHeaderVisible ? "הסתר תפריט" : "הצג תפריט"}
+      >
+        {isHeaderVisible ? <PanelTopCloseIcon className="w-6 h-6" /> : <PanelTopOpenIcon className="w-6 h-6" />}
+      </button>
 
-      <header className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm sticky top-0 z-40 shadow-sm border-b border-slate-200 dark:border-slate-700">
+      <header className={`bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm sticky top-0 z-40 shadow-sm border-b border-slate-200 dark:border-slate-700 transition-transform duration-300 ${!isHeaderVisible ? '-translate-y-full' : ''}`}>
         <nav className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col md:flex-row items-center justify-between py-4 md:py-0 md:h-20">
                 <div className="flex-shrink-0 mb-4 md:mb-0 flex items-center gap-3">

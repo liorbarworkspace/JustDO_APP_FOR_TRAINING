@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { WeeklyPlan, WorkoutTemplate, ID, PlannedExercise, CompletionLogEntry } from '../types';
 import { DAYS_OF_WEEK } from '../constants';
-import { PlayIcon, PauseIcon, SkipBackIcon, SkipForwardIcon, ChevronDownIcon, EditIcon, ClockIcon } from './icons';
+import { PlayIcon, PauseIcon, SkipBackIcon, SkipForwardIcon, ChevronDownIcon, EditIcon, ClockIcon, Volume2Icon, VolumeXIcon } from './icons';
 
-const FINISH_SOUND_MP3 = 'https://codesandbox.io/s/z2j6x9/static/sounds/finish.mp3';
-const TICKING_SOUND_MP3 = 'https://codesandbox.io/s/z2j6x9/static/sounds/ticking.mp3';
+const FINISH_SOUND_MP3 = '/sounds/finish.mp3';
+const TICKING_SOUND_MP3 = '/sounds/ticking.mp3';
+const RELAXING_SOUND_MP3 = '/sounds/relaxing.mp3';
+
 
 // --- Duration Calculation Logic ---
 const SECONDS_PER_REP_ESTIMATE = 3;
@@ -51,22 +53,6 @@ const calculateWorkoutDuration = (template: WorkoutTemplate | null): string => {
 };
 // --- End Duration Calculation Logic ---
 
-const formatDurationDisplay = (seconds: number | undefined | null): string => {
-  if (!seconds || seconds <= 0) {
-    return '';
-  }
-  if (seconds < 60) {
-    return `${seconds} שניות`;
-  }
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  if (remainingSeconds === 0) {
-    return `${minutes} דקות`;
-  }
-  return `${minutes} דקות ו-${remainingSeconds} שניות`;
-};
-
-
 type SessionState = 'pre-start' | 'exercise' | 'rest' | 'finished' | 'idle';
 
 const parseRestTime = (restString: string): number => {
@@ -95,12 +81,15 @@ const WorkoutSessionPage: React.FC<{
 
     const tickingSoundRef = useRef<HTMLAudioElement | null>(null);
     const finishSoundRef = useRef<HTMLAudioElement | null>(null);
+    const relaxingSoundRef = useRef<HTMLAudioElement | null>(null);
     
+    const [areSoundsEnabled, setAreSoundsEnabled] = useState(true);
     const [completedInstanceIds, setCompletedInstanceIds] = useState<Set<string>>(new Set());
     const [isAutoFlowActive, setIsAutoFlowActive] = useState(false);
 
     const sessionStartTimeRef = useRef<number | null>(null);
     const [sessionSeconds, setSessionSeconds] = useState(0);
+    const activeExerciseInstanceId = useRef<string | null>(null);
 
     const todaysWorkoutInfo = useMemo(() => {
         const today = new Date();
@@ -157,7 +146,6 @@ const WorkoutSessionPage: React.FC<{
         setIsTimerRunning(false);
         setPerformedExercisesLog({});
         setCompletedInstanceIds(new Set());
-        // FIX: Corrected typo from `setSessionStartTimeRef` to `sessionStartTimeRef`.
         sessionStartTimeRef.current = null;
         setSessionSeconds(0);
         setSessionState(todaysWorkout && todaysWorkout.exercises.length > 0 ? 'pre-start' : 'idle');
@@ -168,6 +156,8 @@ const WorkoutSessionPage: React.FC<{
             tickingSoundRef.current = new Audio(TICKING_SOUND_MP3);
             tickingSoundRef.current.loop = true;
             finishSoundRef.current = new Audio(FINISH_SOUND_MP3);
+            relaxingSoundRef.current = new Audio(RELAXING_SOUND_MP3);
+            relaxingSoundRef.current.loop = true;
         } catch (e) {
             console.error("Failed to create Audio elements.", e);
         }
@@ -175,6 +165,7 @@ const WorkoutSessionPage: React.FC<{
         return () => {
             tickingSoundRef.current?.pause();
             finishSoundRef.current?.pause();
+            relaxingSoundRef.current?.pause();
         };
     }, []);
 
@@ -189,21 +180,25 @@ const WorkoutSessionPage: React.FC<{
             if (interval) window.clearInterval(interval);
         };
     }, [sessionState]);
-
+    
     useEffect(() => {
-        if (currentExercise && sessionState === 'exercise') {
-            setIsTimerRunning(false);
+        if (sessionState !== 'exercise' && sessionState !== 'rest') return;
+
+        const newExercise = liveTodaysWorkout?.exercises[currentExerciseIndex];
+        if (newExercise && newExercise.planInstanceId !== activeExerciseInstanceId.current) {
+            activeExerciseInstanceId.current = newExercise.planInstanceId;
+            setSessionState('exercise');
             setCurrentSet(1);
-            setTimer(currentExercise.duration || 0);
+            setTimer(newExercise.duration || 0);
+            setIsTimerRunning(false);
             setIsDetailsExpanded(false);
-            tickingSoundRef.current?.pause();
             setCountdown(null);
-            
-            if (!performedExercisesLog[currentExercise.planInstanceId]) {
-                setPerformedExercisesLog(prev => ({ ...prev, [currentExercise.planInstanceId]: currentExercise }));
+    
+            if (!performedExercisesLog[newExercise.planInstanceId]) {
+                setPerformedExercisesLog(prev => ({ ...prev, [newExercise.planInstanceId]: newExercise }));
             }
         }
-    }, [currentExercise, sessionState]);
+    }, [currentExerciseIndex, liveTodaysWorkout, sessionState]);
     
     useEffect(() => {
         if (sessionState === 'finished') return;
@@ -223,74 +218,85 @@ const WorkoutSessionPage: React.FC<{
         }
     }, [countdown, sessionState]);
 
+    // Main sound management effect
+    useEffect(() => {
+        const ticking = tickingSoundRef.current;
+        const relaxing = relaxingSoundRef.current;
+
+        if (!ticking || !relaxing || !areSoundsEnabled) {
+            ticking?.pause();
+            relaxing?.pause();
+            return;
+        }
+
+        if (isTimerRunning && timer > 0) {
+            if (sessionState === 'exercise') {
+                relaxing.pause();
+                ticking.play().catch(e => console.error("Error playing ticking sound:", e));
+            } else if (sessionState === 'rest') {
+                ticking.pause();
+                relaxing.play().catch(e => console.error("Error playing relaxing sound:", e));
+            }
+        } else {
+            ticking.pause();
+            relaxing.pause();
+        }
+
+    }, [isTimerRunning, timer, sessionState, areSoundsEnabled]);
 
     useEffect(() => {
         let interval: number | undefined;
-        if(sessionState === 'finished') {
-            tickingSoundRef.current?.pause();
+        if (sessionState === 'finished') {
             setIsTimerRunning(false);
             return;
         }
 
         if (isTimerRunning && timer > 0) {
-            tickingSoundRef.current?.play().catch(e => console.error("Error playing sound:", e));
             interval = window.setInterval(() => setTimer(prev => prev - 1), 1000);
         } else if (isTimerRunning && timer <= 0) {
             setIsTimerRunning(false);
-            tickingSoundRef.current?.pause();
-            if(tickingSoundRef.current) tickingSoundRef.current.currentTime = 0;
-            finishSoundRef.current?.play().catch(e => console.error("Error playing sound:", e));
+            
+            if (areSoundsEnabled) finishSoundRef.current?.play().catch(e => console.error("Error playing finish sound:", e));
 
             if (isAutoFlowActive) {
-                handleAutoFlowTransition();
+                moveToNextStep(true);
             }
-        } else if (!isTimerRunning) {
-             tickingSoundRef.current?.pause();
         }
         
         return () => {
             if(interval) window.clearInterval(interval);
         };
-    }, [isTimerRunning, timer, isAutoFlowActive, sessionState]);
+    }, [isTimerRunning, timer, isAutoFlowActive, sessionState, areSoundsEnabled]);
     
-    const handleAutoFlowTransition = () => {
-        if (!currentExercise || sessionState === 'finished') return;
+    const moveToNextStep = (isAuto: boolean) => {
+        if (!currentExercise) return;
+        setIsAutoFlowActive(isAuto);
+
         const loggedExercise = performedExercisesLog[currentExercise.planInstanceId] || currentExercise;
         const totalSets = loggedExercise.sets || 1;
         const isTimed = (loggedExercise.duration || 0) > 0;
-        
+
         if (sessionState === 'exercise') {
             if (currentSet < totalSets) {
-                startRestPeriod(true); // true for auto
+                setSessionState('rest');
+                const restDuration = parseRestTime(loggedExercise.rest || '');
+                setTimer(restDuration);
+                if (isAuto) startCountdownSequence();
             } else {
-                handleNextExercise(true); // true for auto
+                handleNextExercise(isAuto);
             }
         } else if (sessionState === 'rest') {
-            if (currentSet < totalSets) {
-                setCurrentSet(s => s + 1);
-                setSessionState('exercise');
-                if (isTimed) {
-                    setTimer(loggedExercise.duration || 0);
-                    startCountdownSequence();
-                } else {
-                    setIsAutoFlowActive(false); // Stop auto-flow for rep-based exercises and wait for user
-                }
-            } else {
-                handleNextExercise(true);
-            }
+             setCurrentSet(s => s + 1);
+             setSessionState('exercise');
+             setTimer(loggedExercise.duration || 0);
+             if (isTimed && isAuto) {
+                 startCountdownSequence();
+             } else if (!isTimed) {
+                 setIsAutoFlowActive(false); 
+             }
         }
     };
 
-    const startRestPeriod = (isAuto = false) => {
-        if (!currentExercise) return;
-        setIsAutoFlowActive(isAuto);
-        setSessionState('rest');
-        const exerciseInLog = performedExercisesLog[currentExercise.planInstanceId];
-        const restDuration = parseRestTime(exerciseInLog?.rest || currentExercise.rest || '');
-        setTimer(restDuration);
-        startCountdownSequence();
-    };
-    
     const startCountdownSequence = () => {
         if(sessionState === 'finished') return;
         setIsTimerRunning(false);
@@ -308,7 +314,6 @@ const WorkoutSessionPage: React.FC<{
         });
     };
     
-    // For editing the plan on the fly
     const handleUpdateLiveExercise = (updatedExercise: PlannedExercise) => {
         if (!liveTodaysWorkout) return;
 
@@ -320,7 +325,6 @@ const WorkoutSessionPage: React.FC<{
             return { ...prevWorkout, exercises: newExercises };
         });
 
-        // Update the log with the new plan as the default
         setPerformedExercisesLog(prevLog => ({
             ...prevLog,
             [updatedExercise.planInstanceId]: updatedExercise,
@@ -332,7 +336,6 @@ const WorkoutSessionPage: React.FC<{
         }
     };
 
-    // For editing just the performance log
     const handleUpdatePerformanceLog = (updatedExercise: PlannedExercise) => {
         setPerformedExercisesLog(prevLog => ({
             ...prevLog,
@@ -341,20 +344,8 @@ const WorkoutSessionPage: React.FC<{
     };
 
     const handleSkip = () => {
-        setIsAutoFlowActive(false);
-        if (sessionState === 'rest') {
-            setTimer(0); 
-            const totalSets = performedExercisesLog[currentExercise!.planInstanceId]?.sets || currentExercise!.sets || 1;
-            if (currentSet < totalSets) {
-                setCurrentSet(s => s + 1);
-                setSessionState('exercise');
-                setTimer(currentExercise?.duration || 0);
-            } else {
-                handleNextExercise(false);
-            }
-        } else {
-            handleNextExercise(false);
-        }
+        if (sessionState === 'finished') return;
+        moveToNextStep(false);
     };
     
     const handleNextExercise = (isAuto: boolean) => {
@@ -367,15 +358,12 @@ const WorkoutSessionPage: React.FC<{
             setCurrentExerciseIndex(prev => prev + 1);
         } else {
             setSessionState('finished');
-            tickingSoundRef.current?.pause();
-            setIsTimerRunning(false);
         }
     };
     
     const handleFinishWorkout = () => {
         if (todaysWorkoutInfo && liveTodaysWorkout && currentExercise) {
             const finalCompletedExercises: { [planInstanceId: string]: PlannedExercise } = {};
-            // Make sure to include the last exercise
             const finalIdSet = new Set(completedInstanceIds).add(currentExercise.planInstanceId);
             
             finalIdSet.forEach(id => {
@@ -415,18 +403,19 @@ const WorkoutSessionPage: React.FC<{
 
     const handleSetCompleted = () => {
         if (sessionState !== 'exercise' || !currentExercise) return;
-        
-        const totalSets = performedExercisesLog[currentExercise.planInstanceId]?.sets || currentExercise.sets || 1;
-        finishSoundRef.current?.play().catch(e => console.error("Error playing sound:", e));
-
-        if (currentSet < totalSets) {
-            startRestPeriod(true); // Auto-transition to rest, then next set
-        } else {
-            handleNextExercise(true); // Auto-transition to next exercise
-        }
+        if (areSoundsEnabled) finishSoundRef.current?.play().catch(e => console.error("Error playing finish sound:", e));
+        moveToNextStep(true);
     };
     
     const handleStartWorkout = () => {
+        [tickingSoundRef, finishSoundRef, relaxingSoundRef].forEach(ref => {
+            if (ref.current?.paused) {
+                ref.current.play().catch(() => {});
+                ref.current.pause();
+                if(ref.current) ref.current.currentTime = 0;
+            }
+        });
+
         setSessionState('exercise');
         sessionStartTimeRef.current = Date.now();
     };
@@ -453,9 +442,6 @@ const WorkoutSessionPage: React.FC<{
         );
     }
     
-    // FIX: The original condition caused a TypeScript error because it checked for 'pre-start'
-    // after the type had already been narrowed. This is simplified to a direct check for 'finished'.
-    // A duplicated block of code was also removed.
     if (sessionState === 'finished') {
         return (
             <div className="w-full max-w-screen-lg mx-auto p-4 md:p-6 text-center flex flex-col items-center justify-center h-[calc(100vh-200px)]">
@@ -491,24 +477,32 @@ const WorkoutSessionPage: React.FC<{
     const isTimedExercise = (loggedExercise.duration || 0) > 0;
     const isCurrentExerciseCompleted = completedInstanceIds.has(currentExercise.planInstanceId);
     
-    const setsRepsString = [
-        totalSets ? `${totalSets} סטים` : '',
+    const detailParts = [
+        totalSets > 1 ? `${totalSets} סטים` : '',
         loggedExercise.reps ? `x ${loggedExercise.reps}` : '',
-        formatDurationDisplay(loggedExercise.duration),
-    ].filter(Boolean).join(' ');
+        loggedExercise.duration ? formatTime(loggedExercise.duration) : '',
+    ].filter(Boolean);
+
 
     const getStatusText = () => {
         if (sessionState === 'rest') return 'מנוחה';
-        // FIX: Removed unreachable code `if (sessionState === 'finished')`.
-        // The component's control flow ensures this function isn't called when the workout is finished, fixing a TypeScript error.
         return `סט ${currentSet} מתוך ${totalSets}`;
     }
 
     return (
         <div className="w-full max-w-screen-lg mx-auto p-4 md:p-6 text-right flex flex-col items-center relative">
-            <div className="absolute top-0 right-0 m-4 bg-slate-800 text-white p-2 px-4 rounded-lg shadow-lg z-10 font-mono text-lg flex items-center gap-2">
-                <ClockIcon className="w-5 h-5" />
-                <span>{formatTime(sessionSeconds)}</span>
+            <div className="absolute top-0 left-0 m-4 flex items-center gap-4">
+                 <button
+                    onClick={() => setAreSoundsEnabled(!areSoundsEnabled)}
+                    className="p-2 bg-slate-800 rounded-full text-white hover:bg-slate-700 transition-colors"
+                    aria-label={areSoundsEnabled ? "השבת צלילים" : "הפעל צלילים"}
+                >
+                    {areSoundsEnabled ? <Volume2Icon className="w-5 h-5" /> : <VolumeXIcon className="w-5 h-5" />}
+                </button>
+                <div className="bg-slate-800 text-white p-2 px-4 rounded-lg shadow-lg z-10 font-mono text-lg flex items-center gap-2">
+                    <ClockIcon className="w-5 h-5" />
+                    <span>{formatTime(sessionSeconds)}</span>
+                </div>
             </div>
             {countdown !== null && (
                 <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
@@ -554,9 +548,16 @@ const WorkoutSessionPage: React.FC<{
                         )}
                     </div>
                 </div>
-
+                
                 <div className="flex justify-center items-center gap-2 mb-6">
-                    <p className="text-3xl md:text-4xl font-semibold text-slate-800 dark:text-white">{setsRepsString}</p>
+                    <div className="flex justify-center items-baseline gap-x-2 text-3xl md:text-4xl font-semibold text-slate-800 dark:text-white">
+                       {detailParts.map((part, index) => (
+                           <React.Fragment key={index}>
+                               <span>{part}</span>
+                               {index < detailParts.length - 1 && <span className="text-slate-400 dark:text-slate-500 text-2xl">•</span>}
+                           </React.Fragment>
+                       ))}
+                    </div>
                     <button
                         onClick={() => {
                             if (currentExercise) {
