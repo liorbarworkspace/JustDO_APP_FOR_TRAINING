@@ -11,7 +11,6 @@ import ConfirmationModal from './components/ConfirmationModal';
 import TemplateFormModal from './components/TemplateFormModal';
 import WeeklyPlanFormModal from './components/WeeklyPlanFormModal';
 import FeedbackModal from './components/FeedbackModal';
-import Login from './components/Login';
 import { EditCompletionLogModal, InWorkoutEditModal, InfoModal, OnboardingGuide } from './components/AllModals';
 import { SunIcon, MoonIcon, DumbbellIcon, PanelTopCloseIcon, PanelTopOpenIcon } from './components/icons';
 import { INITIAL_WORKOUT_TEMPLATES, INITIAL_EXERCISE_LIBRARY, INITIAL_WEEKLY_PLANS, WORKOUT_LEVELS, PLAN_LEVELS, EXERCISE_CATEGORIES, EXERCISE_LEVELS, DAYS_OF_WEEK } from './constants';
@@ -24,8 +23,6 @@ type InfoModalState = {
     message: string;
     type: 'success' | 'error';
 };
-
-const ACCESS_KEY = 'liorbar23';
 
 const universalParseLine = (line: string, delimiter: string): string[] => {
     if (delimiter === '\t') {
@@ -305,9 +302,7 @@ function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  
-  const [onboardingCompleted, setOnboardingCompleted] = useState(() => localStorage.getItem('onboardingCompleted') === 'true');
+const [onboardingCompleted, setOnboardingCompleted] = useState(() => localStorage.getItem('onboardingCompleted') === 'true');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(1);
   const [showWelcomeModal, setShowWelcomeModal] = useState(() => localStorage.getItem('welcomeModalSeen') !== 'true');
@@ -385,13 +380,9 @@ function App() {
 
 
   useEffect(() => {
-    const storedAuth = sessionStorage.getItem('isAuthenticated');
-    if (storedAuth === 'true') {
-        setIsAuthenticated(true);
-        if (!onboardingCompleted) {
-            setShowOnboarding(true);
-            setOnboardingStep(1);
-        }
+    if (!onboardingCompleted) {
+      setShowOnboarding(true);
+      setOnboardingStep(1);
     }
   }, [onboardingCompleted]);
 
@@ -402,19 +393,6 @@ function App() {
   // FIX: Add a useEffect to persist the updated categories list to localStorage.
   useEffect(() => { localStorage.setItem('allCategories', JSON.stringify(allCategories)); }, [allCategories]);
 
-  const handleLogin = (key: string): boolean => {
-    if (key === ACCESS_KEY) {
-        sessionStorage.setItem('isAuthenticated', 'true');
-        setIsAuthenticated(true);
-        if (!onboardingCompleted) {
-            setShowOnboarding(true);
-            setOnboardingStep(1);
-        }
-        return true;
-    }
-    return false;
-  };
-  
   const handleWelcomeClose = () => {
     setShowWelcomeModal(false);
     localStorage.setItem('welcomeModalSeen', 'true');
@@ -1066,9 +1044,6 @@ function App() {
     </button>
   );
 
-  if (!isAuthenticated) {
-    return <Login onLogin={handleLogin} />;
-  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-gray-200">
@@ -1247,7 +1222,7 @@ function App() {
       </main>
 
       <footer className="bg-white dark:bg-slate-800 text-center py-4 mt-10 border-t border-slate-200 dark:border-slate-700">
-        <p className="text-sm text-slate-500 dark:text-gray-500">נבנה עבורך כדי שתגיע ליעדים שלך. בהצלחה!</p>
+        <p className="text-sm text-slate-500 dark:text-gray-500">JUSTDO — Built with AI Studio &amp; customized with passion. Train smart, stay consistent.</p>
       </footer>
     </div>
   );
